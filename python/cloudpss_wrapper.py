@@ -56,6 +56,64 @@ def fetch_model(rid: str) -> Dict[str, Any]:
     }
 
 
+def dump_model(rid: str, file_path: str, format: str = "yaml", compress: str = "gzip") -> Dict[str, Any]:
+    """
+    下载/导出算例文件
+
+    Args:
+        rid: 项目 rid，格式为 'model/owner/key'
+        file_path: 保存文件的路径
+        format: 文件格式，支持 'yaml', 'json' 等
+        compress: 压缩方式，支持 'gzip' 或 None
+
+    Returns:
+        导出结果字典
+    """
+    try:
+        model = cloudpss.Model.fetch(rid)
+        cloudpss.Model.dump(model, file_path, format=format, compress=compress)
+        return {
+            'success': True,
+            'file_path': file_path,
+            'format': format,
+            'compress': compress,
+            'rid': rid
+        }
+    except Exception as e:
+        return {
+            'success': False,
+            'error': str(e)
+        }
+
+
+def load_model(file_path: str, format: str = "yaml", compress: str = "gzip") -> Dict[str, Any]:
+    """
+    从文件加载算例到 CloudPSS
+
+    Args:
+        file_path: 算例文件路径
+        format: 文件格式
+        compress: 压缩方式
+
+    Returns:
+        加载结果字典
+    """
+    try:
+        # CloudPSS SDK 使用 Model.load 从文件创建新项目
+        model = cloudpss.Model.load(file_path, format=format, compress=compress)
+        return {
+            'success': True,
+            'rid': model.rid,
+            'name': model.name,
+            'file_path': file_path
+        }
+    except Exception as e:
+        return {
+            'success': False,
+            'error': str(e)
+        }
+
+
 def list_user_projects() -> List[Dict[str, Any]]:
     """
     获取用户有权限的项目列表
@@ -2356,6 +2414,21 @@ def main():
 
         if command == 'fetch_model':
             result = fetch_model(args[0])
+
+        elif command == 'dump_model':
+            # dump_model(rid, file_path, format, compress)
+            rid = args[0]
+            file_path = args[1]
+            format = args[2] if len(args) > 2 else 'yaml'
+            compress = args[3] if len(args) > 3 else 'gzip'
+            result = dump_model(rid, file_path, format, compress)
+
+        elif command == 'load_model':
+            # load_model(file_path, format, compress)
+            file_path = args[0]
+            format = args[1] if len(args) > 1 else 'yaml'
+            compress = args[2] if len(args) > 2 else 'gzip'
+            result = load_model(file_path, format, compress)
 
         elif command == 'list_projects':
             result = list_user_projects()

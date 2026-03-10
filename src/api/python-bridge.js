@@ -92,6 +92,27 @@ class CloudPSSPythonBridge {
   }
 
   /**
+   * 下载/导出算例文件到本地
+   * @param {string} rid - 项目 rid
+   * @param {string} filePath - 保存文件的路径
+   * @param {string} format - 文件格式 ('yaml', 'json')
+   * @param {string} compress - 压缩方式 ('gzip', null)
+   */
+  async dumpModel(rid, filePath, format = 'yaml', compress = 'gzip') {
+    return this._exec('dump_model', rid, filePath, format, compress);
+  }
+
+  /**
+   * 从文件加载算例到 CloudPSS
+   * @param {string} filePath - 算例文件路径
+   * @param {string} format - 文件格式
+   * @param {string} compress - 压缩方式
+   */
+  async loadModel(filePath, format = 'yaml', compress = 'gzip') {
+    return this._exec('load_model', filePath, format, compress);
+  }
+
+  /**
    * 获取用户有权限的项目列表
    */
   async listProjects() {

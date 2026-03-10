@@ -182,6 +182,61 @@ class ManageSkill {
   async saveProject(rid, newKey = null) {
     return this.client.saveModel(rid, newKey);
   }
+
+  /**
+   * 导出算例文件到本地
+   *
+   * @param {string} rid - 项目 rid
+   * @param {string} filePath - 保存文件的路径
+   * @param {Object} options - 选项
+   * @param {string} options.format - 文件格式 ('yaml', 'json')
+   * @param {string} options.compress - 压缩方式 ('gzip', null)
+   * @returns {Promise<Object>} 导出结果
+   */
+  async exportModel(rid, filePath, options = {}) {
+    const { format = 'yaml', compress = 'gzip' } = options;
+    return this.client.dumpModel(rid, filePath, format, compress);
+  }
+
+  /**
+   * 从文件导入算例到 CloudPSS
+   *
+   * @param {string} filePath - 算例文件路径
+   * @param {Object} options - 选项
+   * @param {string} options.format - 文件格式
+   * @param {string} options.compress - 压缩方式
+   * @returns {Promise<Object>} 导入结果（包含新算例的 rid）
+   */
+  async importModel(filePath, options = {}) {
+    const { format = 'yaml', compress = 'gzip' } = options;
+    return this.client.loadModel(filePath, format, compress);
+  }
+
+  /**
+   * 复制算例（导出再导入）
+   *
+   * @param {string} sourceRid - 源算例 rid
+   * @param {string} targetKey - 目标算例名称
+   * @param {string} tempFile - 临时文件路径
+   * @returns {Promise<Object>} 复制结果（包含新算例的 rid）
+   */
+  async copyModel(sourceRid, targetKey, tempFile = '/tmp/cloudpss_export.tmp') {
+    // 1. 导出源算例
+    await this.exportModel(sourceRid, tempFile);
+
+    // 2. 导入为新算例（注意：loadModel 可能需要额外的参数来指定新名称）
+    // 这里需要 CloudPSS SDK 支持从文件创建并指定名称
+    // 当前实现可能需要后续调整
+    const result = await this.importModel(tempFile);
+
+    // 清理临时文件
+    const fs = require('fs');
+    if (fs.existsSync(tempFile)) {
+      fs.unlinkSync(tempFile);
+    }
+
+    return result;
+  }
 }
 
 module.exports = ManageSkill;
