@@ -22,6 +22,7 @@ const TopologyAnalysisSkill = require('./skills/topology-analysis');
 const PowerFlowAnalysisSkill = require('./skills/power-flow-analysis');
 const N1ContingencyAnalysisSkill = require('./skills/n1-contingency-analysis');
 const BatchSimulationEnhancedSkill = require('./skills/batch-simulation-enhanced');
+const ModelManagementEnhancedSkill = require('./skills/model-management-enhanced');
 
 /**
  * CloudPSS Skills 主类
@@ -47,6 +48,7 @@ class CloudPSSSkills {
     this.powerFlow = new PowerFlowAnalysisSkill(this.client);
     this.n1Analysis = new N1ContingencyAnalysisSkill(this.client);
     this.batchEnhanced = new BatchSimulationEnhancedSkill(this.client);
+    this.modelManagement = new ModelManagementEnhancedSkill(this.client);
   }
 
   /**
@@ -89,5 +91,6 @@ module.exports = {
   TopologyAnalysisSkill,
   PowerFlowAnalysisSkill,
   N1ContingencyAnalysisSkill,
-  BatchSimulationEnhancedSkill
+  BatchSimulationEnhancedSkill,
+  ModelManagementEnhancedSkill
 };
