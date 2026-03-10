@@ -95,38 +95,98 @@
   "hotPaths": [
     {
       "path": "python/cloudpss_wrapper.py",
-      "accessCount": 45,
-      "lastAccessed": 1773102923162,
+      "accessCount": 86,
+      "lastAccessed": 1773154828368,
       "type": "file"
     },
     {
       "path": "src/index.js",
-      "accessCount": 12,
-      "lastAccessed": 1773069963265,
-      "type": "file"
-    },
-    {
-      "path": "docs/multi-agent-experiment-report.md",
-      "accessCount": 12,
-      "lastAccessed": 1773103168491,
+      "accessCount": 30,
+      "lastAccessed": 1773152272217,
       "type": "file"
     },
     {
       "path": "src/api/python-bridge.js",
-      "accessCount": 11,
-      "lastAccessed": 1773070033074,
+      "accessCount": 21,
+      "lastAccessed": 1773154083631,
+      "type": "file"
+    },
+    {
+      "path": "tests/deep-cognitive-test.js",
+      "accessCount": 19,
+      "lastAccessed": 1773145081747,
+      "type": "file"
+    },
+    {
+      "path": "docs/multi-agent-experiment-report.md",
+      "accessCount": 14,
+      "lastAccessed": 1773111352169,
+      "type": "file"
+    },
+    {
+      "path": "src/skills/analyze-component.js",
+      "accessCount": 14,
+      "lastAccessed": 1773135176674,
+      "type": "file"
+    },
+    {
+      "path": "src/skills/model-overview.js",
+      "accessCount": 12,
+      "lastAccessed": 1773134564560,
+      "type": "file"
+    },
+    {
+      "path": "src/api/client.js",
+      "accessCount": 12,
+      "lastAccessed": 1773154151965,
       "type": "file"
     },
     {
       "path": "",
-      "accessCount": 9,
-      "lastAccessed": 1773069135513,
+      "accessCount": 10,
+      "lastAccessed": 1773123474452,
       "type": "directory"
     },
     {
-      "path": "src/api/client.js",
+      "path": "tests/comprehensive-validation.test.js",
+      "accessCount": 8,
+      "lastAccessed": 1773126346120,
+      "type": "file"
+    },
+    {
+      "path": "src/skills/manage.js",
+      "accessCount": 7,
+      "lastAccessed": 1773152049778,
+      "type": "file"
+    },
+    {
+      "path": "README.md",
+      "accessCount": 7,
+      "lastAccessed": 1773152952310,
+      "type": "file"
+    },
+    {
+      "path": "experiment-data/ieee3-full-structure.json",
       "accessCount": 6,
-      "lastAccessed": 1773070106053,
+      "lastAccessed": 1773111007698,
+      "type": "file"
+    },
+    {
+      "path": "python",
+      "accessCount": 6,
+      "lastAccessed": 1773144360688,
+      "type": "directory"
+    },
+    {
+      "path": "src/skills/batch-simulation.js",
+      "accessCount": 6,
+      "lastAccessed": 1773147654617,
+      "type": "file"
+    },
+    {
+      "path": "tests/e2e-new-skills.test.js",
+      "accessCount": 6,
+      "lastAccessed": 1773154034063,
       "type": "file"
     },
     {
@@ -136,21 +196,21 @@
       "type": "file"
     },
     {
+      "path": "src/skills/analyze-n1.js",
+      "accessCount": 5,
+      "lastAccessed": 1773147371377,
+      "type": "file"
+    },
+    {
       "path": "examples/analyze-results.js",
       "accessCount": 4,
       "lastAccessed": 1773068462144,
       "type": "file"
     },
     {
-      "path": "src/skills/batch-simulation.js",
+      "path": "src/skills/extract.js",
       "accessCount": 4,
-      "lastAccessed": 1773070158003,
-      "type": "file"
-    },
-    {
-      "path": "src/skills/analyze-n1.js",
-      "accessCount": 4,
-      "lastAccessed": 1773070202765,
+      "lastAccessed": 1773147173757,
       "type": "file"
     },
     {
@@ -172,9 +232,21 @@
       "type": "file"
     },
     {
-      "path": "src/skills/extract.js",
-      "accessCount": 2,
-      "lastAccessed": 1773066984018,
+      "path": "src/skills/topology-analysis.js",
+      "accessCount": 3,
+      "lastAccessed": 1773145060702,
+      "type": "file"
+    },
+    {
+      "path": "src/skills/n1-contingency-analysis.js",
+      "accessCount": 3,
+      "lastAccessed": 1773148298495,
+      "type": "file"
+    },
+    {
+      "path": "src/skills/power-flow-analysis.js",
+      "accessCount": 3,
+      "lastAccessed": 1773154189041,
       "type": "file"
     },
     {
@@ -185,26 +257,38 @@
     },
     {
       "path": ".env",
-      "accessCount": 1,
-      "lastAccessed": 1773066657875,
+      "accessCount": 2,
+      "lastAccessed": 1773105803024,
       "type": "file"
+    },
+    {
+      "path": "scripts/export-model-structure.py",
+      "accessCount": 2,
+      "lastAccessed": 1773105827692,
+      "type": "file"
+    },
+    {
+      "path": "src/skills/analyze-topology.js",
+      "accessCount": 2,
+      "lastAccessed": 1773114312682,
+      "type": "file"
+    },
+    {
+      "path": "tests/official-dump-format.test.js",
+      "accessCount": 2,
+      "lastAccessed": 1773114457298,
+      "type": "file"
+    },
+    {
+      "path": "src",
+      "accessCount": 2,
+      "lastAccessed": 1773114745720,
+      "type": "directory"
     },
     {
       "path": "src/skills/create.js",
       "accessCount": 1,
       "lastAccessed": 1773067365602,
-      "type": "file"
-    },
-    {
-      "path": "src/skills/manage.js",
-      "accessCount": 1,
-      "lastAccessed": 1773067365663,
-      "type": "file"
-    },
-    {
-      "path": "README.md",
-      "accessCount": 1,
-      "lastAccessed": 1773068079940,
       "type": "file"
     },
     {
@@ -238,18 +322,6 @@
       "type": "file"
     },
     {
-      "path": "python",
-      "accessCount": 1,
-      "lastAccessed": 1773068430477,
-      "type": "directory"
-    },
-    {
-      "path": "src",
-      "accessCount": 1,
-      "lastAccessed": 1773068433632,
-      "type": "directory"
-    },
-    {
       "path": "examples/n1-scan-example.js",
       "accessCount": 1,
       "lastAccessed": 1773068867843,
@@ -277,6 +349,24 @@
       "path": "examples/test-all-p0-skills.js",
       "accessCount": 1,
       "lastAccessed": 1773103092925,
+      "type": "file"
+    },
+    {
+      "path": "src/skills/batch-simulation-enhanced.js",
+      "accessCount": 1,
+      "lastAccessed": 1773147745817,
+      "type": "file"
+    },
+    {
+      "path": "tests/unit-new-skills.test.js",
+      "accessCount": 1,
+      "lastAccessed": 1773148465158,
+      "type": "file"
+    },
+    {
+      "path": "src/skills/model-management-enhanced.js",
+      "accessCount": 1,
+      "lastAccessed": 1773152178501,
       "type": "file"
     }
   ],

@@ -43,10 +43,10 @@ class PowerFlowAnalysisSkill {
     const job = await this.client.runSimulation(rid, jobIndex, configIndex);
 
     // 等待完成
-    await this.client.waitForCompletion(job.id, 300);
+    await this.client.waitForCompletion(job.job_id, 300);
 
     return {
-      jobId: job.id,
+      jobId: job.job_id,
       status: 'completed',
       rid
     };

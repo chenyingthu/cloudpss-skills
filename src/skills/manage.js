@@ -17,10 +17,14 @@ class ManageSkill {
   /**
    * 列出所有项目
    *
+   * @param {Object} options - 查询选项
+   * @param {string} options.name - 查询名称（模糊查询）
+   * @param {number} options.pageSize - 分页大小，默认 100
+   * @param {string} options.owner - 所有者筛选，默认当前用户；设为 "*" 获取所有公开项目
    * @returns {Promise<Array>} 项目列表
    */
-  async listProjects() {
-    return this.client.listProjects();
+  async listProjects(options = {}) {
+    return this.client.listProjects(options);
   }
 
   /**

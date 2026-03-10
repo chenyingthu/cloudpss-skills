@@ -465,9 +465,10 @@ def get_topology(rid: str, implement_type: str = 'emtp',
         拓扑数据
     """
     model = cloudpss.Model.fetch(rid)
+    # SDK expects config to have 'args' key if provided
     topology = model.fetchTopology(
         implementType=implement_type,
-        config=config or {},
+        config=config if config else None,
         maximumDepth=max_depth
     )
     return {
@@ -2481,7 +2482,8 @@ def main():
             result = get_all_components(args[0])
 
         elif command == 'get_topology':
-            result = get_topology(args[0])
+            implement_type = args[1] if len(args) > 1 else 'emtp'
+            result = get_topology(args[0], implement_type)
 
         elif command == 'save_model':
             result = save_model(args[0], args[1] if len(args) > 1 else None)
