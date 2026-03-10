@@ -24,7 +24,7 @@ class ModelOverviewSkill {
    * 从本地文件加载算例数据
    *
    * @param {string} filePath - JSON 文件路径
-   * @returns {Object} 算例数据
+   * @returns {Object} 算例数据（统一格式）
    */
   loadFromLocalFile(filePath) {
     const absolutePath = path.resolve(filePath);
@@ -32,7 +32,85 @@ class ModelOverviewSkill {
       throw new Error(`文件不存在：${absolutePath}`);
     }
     const content = fs.readFileSync(absolutePath, 'utf-8');
-    return JSON.parse(content);
+    const rawData = JSON.parse(content);
+
+    // 检测并转换官方 Model.dump() 格式
+    if (this._isOfficialDumpFormat(rawData)) {
+      return this._convertOfficialDumpToInternalFormat(rawData);
+    }
+
+    // 返回原有的内部格式
+    return rawData;
+  }
+
+  /**
+   * 检测是否为官方 Model.dump() 格式
+   *
+   * @param {Object} data - 原始数据
+   * @returns {boolean} 是否为官方格式
+   */
+  _isOfficialDumpFormat(data) {
+    // 官方格式特征：有 revision.implements.diagram.cells，没有 model_info
+    return data.revision &&
+           data.revision.implements &&
+           data.revision.implements.diagram &&
+           data.revision.implements.diagram.cells &&
+           !data.model_info;
+  }
+
+  /**
+   * 将官方 Model.dump() 格式转换为内部统一格式
+   *
+   * @param {Object} dumpData - 官方导出格式
+   * @returns {Object} 内部统一格式
+   */
+  _convertOfficialDumpToInternalFormat(dumpData) {
+    const cells = dumpData.revision.implements.diagram.cells || {};
+
+    // 转换元件数据
+    const allComponents = Object.values(cells).filter(c => c.definition);
+    const componentsByType = {};
+
+    for (const comp of allComponents) {
+      const def = comp.definition || 'unknown';
+      const className = def.split('/').pop() || 'unknown';
+      const typeKey = className.toLowerCase().replace(/[^a-z]/g, '_');
+
+      if (!componentsByType[typeKey]) {
+        componentsByType[typeKey] = [];
+      }
+      componentsByType[typeKey].push({
+        id: comp.id,
+        label: comp.label,
+        definition: def,
+        args: comp.args || {},
+        pins: comp.pins || {}
+      });
+    }
+
+    // 构建内部格式
+    return {
+      model_info: {
+        rid: dumpData.rid,
+        name: dumpData.name,
+        description: dumpData.description,
+        configs: dumpData.configs || [],
+        jobs: dumpData.jobs || []
+      },
+      exported_at: new Date().toISOString(),
+      statistics: {
+        total_components: allComponents.length
+      },
+      components_by_type: componentsByType,
+      all_components: allComponents.map(c => ({
+        id: c.id,
+        label: c.label,
+        definition: c.definition,
+        args: c.args || {},
+        pins: c.pins || {}
+      })),
+      topology: null // 拓扑数据需要单独获取
+    };
   }
 
   /**

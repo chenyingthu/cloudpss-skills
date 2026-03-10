@@ -8,11 +8,20 @@
  * - 元件查询：根据 ID、label、类型查询元件
  * - 参数提取：获取指定元件的参数（args 字段）
  * - 类型识别：改进的定义匹配逻辑，识别更多元件类型
+ *
+ * 支持的数据格式:
+ * - CloudPSS Model.dump() 官方导出格式 (JSON/YAML)
+ * - 内部自定义导出格式 (experiment-data/*.json)
+ * - 直接从 CloudPSS API 获取
  */
 
+const fs = require('fs');
+const path = require('path');
+
 class ComponentAnalysisSkill {
-  constructor(client) {
+  constructor(client, options = {}) {
     this.client = client;
+    this.options = options;
     // 元件类型映射规则（基于 definition 字段）
     this.componentTypeMap = {
       // 发电机类
@@ -139,6 +148,57 @@ class ComponentAnalysisSkill {
         'Ground',
         'Earth'
       ]
+    };
+  }
+
+  /**
+   * 从本地文件加载算例数据（支持官方 dump 格式）
+   *
+   * @param {string} filePath - JSON 文件路径
+   * @returns {Object} 算例数据（统一格式）
+   */
+  loadFromLocalFile(filePath) {
+    const absolutePath = path.resolve(filePath);
+    if (!fs.existsSync(absolutePath)) {
+      throw new Error(`文件不存在：${absolutePath}`);
+    }
+    const content = fs.readFileSync(absolutePath, 'utf-8');
+    const rawData = JSON.parse(content);
+
+    // 检测并转换官方 Model.dump() 格式
+    if (this._isOfficialDumpFormat(rawData)) {
+      return this._convertOfficialDumpToInternalFormat(rawData);
+    }
+
+    return rawData;
+  }
+
+  /**
+   * 检测是否为官方 Model.dump() 格式
+   */
+  _isOfficialDumpFormat(data) {
+    return data.revision &&
+           data.revision.implements &&
+           data.revision.implements.diagram &&
+           data.revision.implements.diagram.cells &&
+           !data.model_info;
+  }
+
+  /**
+   * 将官方 Model.dump() 格式转换为内部统一格式
+   */
+  _convertOfficialDumpToInternalFormat(dumpData) {
+    const cells = dumpData.revision.implements.diagram.cells || {};
+    const allComponents = Object.values(cells).filter(c => c.definition);
+
+    return {
+      all_components: allComponents.map(c => ({
+        id: c.id,
+        label: c.label,
+        definition: c.definition,
+        args: c.args || {},
+        pins: c.pins || {}
+      }))
     };
   }
 
