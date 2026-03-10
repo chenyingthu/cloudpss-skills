@@ -430,6 +430,250 @@ def save_model(rid: str, new_key: str = None) -> bool:
 
 
 # =====================================================
+# Component Analysis APIs - 元件分析 API
+# =====================================================
+
+# 元件类型映射表
+COMPONENT_TYPE_MAP = {
+    # Generator and related components
+    'generator': ['SyncGenerator', 'GENROU', 'GENSAL', 'GENUNI', 'GEN', 'SYNCHRO'],
+    'turbine_governor': ['STEAM_TUR', 'STEAM_GOV', 'HYGOV', 'GAST', 'TGOV', 'TURBINE', 'STEAM'],
+    'exciter': ['EXST', 'EXTR', 'EXAC', 'ESAC', 'EX'],
+    'pss': ['PSS', 'STAB'],
+    # Network components
+    'line': ['TransmissionLine', 'LINE', 'Branch', 'BRANCH'],
+    'transformer': ['Transformer', 'XFMR', 'TR2', 'TR3'],
+    'load': ['ExpLoad', 'LOAD', 'Load', 'ELCLOAD', 'RLCLOAD'],
+    'bus': ['Bus', 'BUS', 'BUSALT'],
+    'fault': ['Fault', 'FAULT'],
+    'switch': ['SWITCH', 'Breaker', 'DISC', 'CB'],
+    'renewable': ['RENC', 'SOLAR', 'WIND', 'WT', 'PV'],
+    'capacitor': ['CAPACITOR', 'CAP', 'SHUNT'],
+    'inductor': ['INDUCTOR', 'IND', 'REACTOR'],
+    # Measurement and control
+    'measurement': ['VoltageMeter', 'CurrentMeter', 'METER', 'MEASUREMENT', 'SENSOR', 'PMU', 'Channel'],
+    'controller': ['Controller', 'CTRL', 'PI', 'PID', 'LIMITER', 'Gain', 'Sum', 'LoopNode', 'Constant', 'StepGen'],
+    # Labels and ground
+    'label': ['ElectricalLable', 'LABEL'],
+    'ground': ['GND', 'GROUND'],
+    # CloudPSS specific naming patterns (with underscore prefix)
+    'bus_cloudpss': ['_newBus'],
+    'transformer_cloudpss': ['_newTransformer'],
+    'load_cloudpss': ['_newExpLoad'],
+    'fault_cloudpss': ['_newFaultResistor'],
+    'line_cloudpss': ['_newLine'],
+    'measurement_cloudpss': ['_NewVoltageMeter', '_newChannel'],
+    'controller_cloudpss': ['_newConstant', '_newGain', '_newLoopNode', '_newStepGen', '_newSum'],
+    'turbine_cloudpss': ['_STEAM_TUR'],
+    'governor_cloudpss': ['_STEAM_GOV'],
+    'exciter_cloudpss': ['_EXST'],
+    'pss_cloudpss': ['_PSS'],
+    'other': []
+}
+
+
+def _get_component_type(definition: Optional[str]) -> str:
+    """
+    根据 definition 获取元件类型
+
+    Args:
+        definition: 元件定义字符串
+
+    Returns:
+        元件类型（category）
+    """
+    if not definition:
+        return 'unknown'
+
+    # 提取 definition 的最后一段（类名）
+    parts = definition.split('/')
+    class_name = parts[-1]
+
+    # 遍历类型映射，查找匹配
+    for comp_type, patterns in COMPONENT_TYPE_MAP.items():
+        for pattern in patterns:
+            if class_name == pattern or class_name.startswith(pattern):
+                return comp_type
+
+    return 'unknown'
+
+
+def classify_component(definition: Optional[str], args: Optional[Dict] = None) -> Dict[str, Any]:
+    """
+    分类单个元件
+    """
+    comp_type = _get_component_type(definition)
+    return {
+        'type': comp_type,
+        'definition': definition,
+        'category': comp_type,
+        'class_name': definition.split('/')[-1] if definition else None
+    }
+
+
+def classify_components(components: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
+    """
+    批量分类元件
+    """
+    classified = {}
+
+    for key, comp in components.items():
+        comp_type = _get_component_type(comp.get('definition'))
+        if comp_type not in classified:
+            classified[comp_type] = []
+        classified[comp_type].append(comp)
+
+    return classified
+
+
+def analyze_components(rid: str, detailed: bool = False) -> Dict[str, Any]:
+    """
+    分析模型中的所有元件
+
+    Args:
+        rid: 项目 rid
+        detailed: 是否返回详细分析
+
+    Returns:
+        元件分析报告
+    """
+    model = cloudpss.Model.fetch(rid)
+    components = model.getAllComponents()
+
+    # 序列化并分类元件
+    serialized = {}
+    for key, comp in components.items():
+        serialized[key] = {
+            'id': comp.id if hasattr(comp, 'id') else str(comp),
+            'label': comp.label if hasattr(comp, 'label') else '',
+            'definition': comp.definition if hasattr(comp, 'definition') else '',
+            'args': dict(comp.args) if hasattr(comp, 'args') and comp.args else {},
+            'pins': dict(comp.pins) if hasattr(comp, 'pins') and comp.pins else {},
+            'type': _get_component_type(comp.definition if hasattr(comp, 'definition') else None)
+        }
+
+    # 分类
+    classified = classify_components(serialized)
+
+    # 统计信息
+    statistics = {
+        'total': len(serialized),
+        'by_type': {},
+        'by_category': {}
+    }
+
+    for category, comps in classified.items():
+        statistics['by_category'][category] = len(comps)
+
+    # 按原始 type 统计
+    type_count = {}
+    for comp in serialized.values():
+        t = comp['definition'] or 'unknown'
+        type_count[t] = type_count.get(t, 0) + 1
+    statistics['by_type'] = type_count
+
+    # 生成摘要
+    summary = {
+        'total_components': len(serialized),
+        'categories': []
+    }
+
+    for category, comps in sorted(classified.items(), key=lambda x: len(x[1]), reverse=True):
+        summary['categories'].append({
+            'name': category,
+            'count': len(comps),
+            'percentage': round((len(comps) / len(serialized)) * 100, 2) if serialized else 0
+        })
+
+    result = {
+        'rid': rid,
+        'timestamp': __import__('datetime').datetime.now().isoformat(),
+        'statistics': statistics,
+        'classified': classified if detailed else {k: len(v) for k, v in classified.items()},
+        'summary': summary
+    }
+
+    if detailed:
+        result['details'] = {
+            category: {
+                'count': len(comps),
+                'components': [
+                    {
+                        'id': c['id'],
+                        'label': c['label'],
+                        'definition': c['definition'],
+                        'parameter_count': len(c['args']) if c['args'] else 0
+                    }
+                    for c in comps
+                ]
+            }
+            for category, comps in classified.items()
+        }
+
+    return result
+
+
+def get_component_by_id(rid: str, component_id: str) -> Optional[Dict[str, Any]]:
+    """
+    根据 ID 查询元件
+    """
+    model = cloudpss.Model.fetch(rid)
+    components = model.getAllComponents()
+
+    for key, comp in components.items():
+        if key == component_id or (hasattr(comp, 'id') and comp.id == component_id):
+            return {
+                'id': comp.id if hasattr(comp, 'id') else str(comp),
+                'label': comp.label if hasattr(comp, 'label') else '',
+                'definition': comp.definition if hasattr(comp, 'definition') else '',
+                'args': dict(comp.args) if hasattr(comp, 'args') and comp.args else {},
+                'pins': dict(comp.pins) if hasattr(comp, 'pins') and comp.pins else {},
+                'type': _get_component_type(comp.definition if hasattr(comp, 'definition') else None)
+            }
+    return None
+
+
+def get_component_parameters(rid: str, component_id: str) -> Optional[Dict[str, Any]]:
+    """
+    获取元件参数
+    """
+    component = get_component_by_id(rid, component_id)
+    if not component:
+        return None
+
+    return {
+        'id': component['id'],
+        'label': component['label'],
+        'definition': component['definition'],
+        'type': component['type'],
+        'parameters': component['args'],
+        'parameter_count': len(component['args']) if component['args'] else 0
+    }
+
+
+def get_components_by_type(rid: str, component_type: str) -> List[Dict[str, Any]]:
+    """
+    根据类型获取元件
+    """
+    model = cloudpss.Model.fetch(rid)
+    components = model.getAllComponents()
+
+    result = []
+    for key, comp in components.items():
+        comp_type = _get_component_type(comp.definition if hasattr(comp, 'definition') else None)
+        if comp_type == component_type:
+            result.append({
+                'id': comp.id if hasattr(comp, 'id') else str(comp),
+                'label': comp.label if hasattr(comp, 'label') else '',
+                'definition': comp.definition if hasattr(comp, 'definition') else '',
+                'args': dict(comp.args) if hasattr(comp, 'args') and comp.args else {},
+                'type': comp_type
+            })
+
+    return result
+
+
+# =====================================================
 # N-1 Contingency Scan APIs
 # =====================================================
 
@@ -1718,6 +1962,377 @@ def aggregate_results(results: List[Dict[str, Any]]) -> Dict[str, Any]:
 
     return aggregated
 
+
+# =====================================================
+# Topology Analysis Functions - 拓扑分析函数
+# =====================================================
+
+def analyze_topology_from_file(file_path: str, options: Dict = None) -> Dict[str, Any]:
+    """
+    从 JSON 文件分析拓扑结构
+
+    Args:
+        file_path: 拓扑结构 JSON 文件路径
+        options: 分析选项
+
+    Returns:
+        拓扑分析报告
+    """
+    if options is None:
+        options = {
+            'include_matrix': True,
+            'include_connectivity': True,
+            'include_paths': False,
+            'include_visualization': True
+        }
+
+    import json
+
+    # 读取 JSON 文件
+    with open(file_path, 'r', encoding='utf-8') as f:
+        topology_data = json.load(f)
+
+    # 提取组件和连接
+    components, connections = _extract_topology_components(topology_data)
+
+    result = {
+        'file': file_path,
+        'timestamp': __import__('datetime').datetime.now().isoformat(),
+        'type': 'topology_analysis',
+        'summary': {},
+        'matrix': None,
+        'connectivity': None,
+        'paths': None,
+        'visualization': None
+    }
+
+    # 连接矩阵
+    if options.get('include_matrix', True):
+        result['matrix'] = _generate_connection_matrix(components, connections)
+
+    # 连通性分析
+    if options.get('include_connectivity', True):
+        result['connectivity'] = _analyze_connectivity(components, connections)
+        result['summary']['island_count'] = result['connectivity']['island_count']
+        result['summary']['largest_island_size'] = result['connectivity']['largest_island_size']
+
+    # 度数统计
+    result['summary'].update(_calculate_degree_stats(components, connections))
+    result['summary']['node_count'] = len(components)
+    result['summary']['connection_count'] = len(connections)
+
+    # 可视化数据
+    if options.get('include_visualization', True):
+        result['visualization'] = _generate_topology_visualization(components, connections)
+
+    return result
+
+
+def _extract_topology_components(topology_data: Dict) -> tuple:
+    """从拓扑数据中提取组件和连接关系"""
+    components = []
+    connections = []
+
+    raw = topology_data.get('topology', {}).get('raw', {})
+    comps = raw.get('components', {})
+    mappings = raw.get('mappings', {})
+
+    # 构建 pin 到 component 的映射
+    pin_to_component = {}
+    for key, comp in comps.items():
+        pins = comp.get('pins', {})
+        label = comp.get('label', '')
+        definition = comp.get('definition', '')
+
+        # 判断是否为电气节点
+        is_electrical = (
+            'bus' in definition.lower() or
+            'bus' in label.lower() or
+            '母线' in label or
+            len(pins) > 0
+        )
+
+        if is_electrical:
+            comp_type = _classify_topology_component(comp)
+            components.append({
+                'id': key,
+                'label': label or key,
+                'type': comp_type,
+                'pins': pins,
+                'definition': definition
+            })
+
+            # 记录 pin 映射
+            for pin_id, node_ref in pins.items():
+                if node_ref not in pin_to_component:
+                    pin_to_component[node_ref] = []
+                pin_to_component[node_ref].append({
+                    'component': key,
+                    'pin': pin_id
+                })
+
+    # 基于共享节点建立连接
+    processed = set()
+    for node_ref, comp_list in pin_to_component.items():
+        if len(comp_list) > 1:
+            for i in range(len(comp_list)):
+                for j in range(i + 1, len(comp_list)):
+                    conn_key = '-'.join(sorted([comp_list[i]['component'], comp_list[j]['component']]))
+                    if conn_key not in processed:
+                        processed.add(conn_key)
+                        connections.append({
+                            'id': f'conn_{node_ref}',
+                            'source': comp_list[i]['component'],
+                            'source_pin': comp_list[i]['pin'],
+                            'target': comp_list[j]['component'],
+                            'target_pin': comp_list[j]['pin'],
+                            'node_ref': node_ref
+                        })
+
+    return components, connections
+
+
+def _classify_topology_component(comp: Dict) -> str:
+    """分类组件类型"""
+    definition = (comp.get('definition', '') or '').lower()
+    label = (comp.get('label', '') or '').lower()
+
+    if 'bus' in definition or 'bus' in label or '母线' in comp.get('label', ''):
+        return 'bus'
+    if 'line' in definition or 'line' in label or '线路' in comp.get('label', ''):
+        return 'line'
+    if 'transformer' in definition or 'transformer' in label or '变压器' in comp.get('label', ''):
+        return 'transformer'
+    if 'generator' in definition or 'generator' in label or '发电机' in comp.get('label', ''):
+        return 'generator'
+    if 'load' in definition or 'load' in label or '负荷' in comp.get('label', ''):
+        return 'load'
+
+    return 'other'
+
+
+def _generate_connection_matrix(components: List[Dict], connections: List[Dict]) -> Dict[str, Any]:
+    """生成连接矩阵（邻接矩阵）"""
+    n = len(components)
+    node_index = {comp['id']: idx for idx, comp in enumerate(components)}
+
+    # 创建邻接矩阵
+    matrix = [[0] * n for _ in range(n)]
+
+    for conn in connections:
+        src_idx = node_index.get(conn['source'])
+        tgt_idx = node_index.get(conn['target'])
+        if src_idx is not None and tgt_idx is not None:
+            matrix[src_idx][tgt_idx] = 1
+            matrix[tgt_idx][src_idx] = 1
+
+    # 转换为稀疏表示
+    sparse = []
+    for i in range(n):
+        for j in range(n):
+            if matrix[i][j] != 0:
+                sparse.append({'row': i, 'col': j, 'value': matrix[i][j]})
+
+    return {
+        'type': 'adjacency',
+        'size': n,
+        'nodes': [{'id': c['id'], 'label': c['label'], 'type': c['type']} for c in components],
+        'matrix': matrix,
+        'sparse': sparse
+    }
+
+
+def _analyze_connectivity(components: List[Dict], connections: List[Dict]) -> Dict[str, Any]:
+    """连通性分析 - 检测电气岛"""
+    # 构建邻接表
+    adj_list = {comp['id']: [] for comp in components}
+
+    for conn in connections:
+        adj_list[conn['source']].append(conn['target'])
+        adj_list[conn['target']].append(conn['source'])
+
+    # DFS 查找连通分量
+    visited = set()
+    islands = []
+
+    def dfs(node_id):
+        component = []
+        stack = [node_id]
+        while stack:
+            current = stack.pop()
+            if current not in visited:
+                visited.add(current)
+                comp = next((c for c in components if c['id'] == current), None)
+                if comp:
+                    component.append({
+                        'id': comp['id'],
+                        'label': comp['label'],
+                        'type': comp['type']
+                    })
+                for neighbor in adj_list.get(current, []):
+                    if neighbor not in visited:
+                        stack.append(neighbor)
+        return component
+
+    for comp in components:
+        if comp['id'] not in visited:
+            island = dfs(comp['id'])
+            islands.append({
+                'id': f'island_{len(islands)}',
+                'nodes': island,
+                'size': len(island)
+            })
+
+    # 计算密度
+    n = len(components)
+    max_edges = n * (n - 1) / 2 if n > 1 else 1
+    density = len(connections) / max_edges if max_edges > 0 else 0
+
+    return {
+        'island_count': len(islands),
+        'islands': islands,
+        'is_fully_connected': len(islands) == 1,
+        'largest_island_size': max((i['size'] for i in islands), default=0),
+        'density': round(density, 4)
+    }
+
+
+def _calculate_degree_stats(components: List[Dict], connections: List[Dict]) -> Dict[str, Any]:
+    """计算度数统计"""
+    degree_map = {comp['id']: 0 for comp in components}
+
+    for conn in connections:
+        degree_map[conn['source']] = degree_map.get(conn['source'], 0) + 1
+        degree_map[conn['target']] = degree_map.get(conn['target'], 0) + 1
+
+    degrees = list(degree_map.values())
+    max_degree = max(degrees) if degrees else 0
+    min_degree = min(degrees) if degrees else 0
+    avg_degree = sum(degrees) / len(degrees) if degrees else 0
+
+    # 找出关键节点
+    critical_nodes = []
+    threshold = max_degree * 0.8 if max_degree > 0 else 0
+    for node_id, degree in degree_map.items():
+        if degree >= threshold and degree > 2:
+            comp = next((c for c in components if c['id'] == node_id), None)
+            if comp:
+                critical_nodes.append({
+                    'id': comp['id'],
+                    'label': comp['label'],
+                    'type': comp['type'],
+                    'degree': degree
+                })
+
+    critical_nodes.sort(key=lambda x: x['degree'], reverse=True)
+
+    return {
+        'max_degree': max_degree,
+        'min_degree': min_degree,
+        'avg_degree': round(avg_degree, 2),
+        'total_degree': sum(degrees),
+        'critical_nodes': critical_nodes[:5]
+    }
+
+
+def _generate_topology_visualization(components: List[Dict], connections: List[Dict]) -> Dict[str, Any]:
+    """生成可视化数据（用于 D3.js 等）"""
+    # 节点类型到颜色的映射
+    type_colors = {
+        'bus': '#3b82f6',
+        'line': '#10b981',
+        'transformer': '#f59e0b',
+        'generator': '#ef4444',
+        'load': '#8b5cf6',
+        'other': '#6b7280'
+    }
+
+    # 计算节点度数
+    degree_map = {}
+    for conn in connections:
+        degree_map[conn['source']] = degree_map.get(conn['source'], 0) + 1
+        degree_map[conn['target']] = degree_map.get(conn['target'], 0) + 1
+
+    nodes = [
+        {
+            'id': comp['id'],
+            'label': comp['label'],
+            'type': comp['type'],
+            'value': degree_map.get(comp['id'], 0),
+            'color': type_colors.get(comp['type'], type_colors['other'])
+        }
+        for comp in components
+    ]
+
+    links = [
+        {
+            'source': conn['source'],
+            'target': conn['target'],
+            'value': 1
+        }
+        for conn in connections
+    ]
+
+    return {
+        'nodes': nodes,
+        'links': links,
+        'node_types': list(type_colors.keys()),
+        'metadata': {
+            'node_count': len(nodes),
+            'link_count': len(links)
+        }
+    }
+
+
+def find_topology_path(components: List[Dict], connections: List[Dict],
+                       source_id: str, target_id: str) -> Dict[str, Any]:
+    """
+    查找两点之间的电气路径（BFS 最短路径）
+    """
+    # 构建邻接表
+    adj_list = {comp['id']: [] for comp in components}
+    for conn in connections:
+        adj_list[conn['source']].append(conn['target'])
+        adj_list[conn['target']].append(conn['source'])
+
+    # BFS 查找最短路径
+    queue = [[source_id]]
+    visited = {source_id}
+
+    while queue:
+        path = queue.pop(0)
+        current = path[-1]
+
+        if current == target_id:
+            path_components = []
+            for node_id in path:
+                comp = next((c for c in components if c['id'] == node_id), None)
+                if comp:
+                    path_components.append({
+                        'id': comp['id'],
+                        'label': comp['label'],
+                        'type': comp['type']
+                    })
+            return {
+                'found': True,
+                'source': source_id,
+                'target': target_id,
+                'path': path_components,
+                'length': len(path) - 1
+            }
+
+        for neighbor in adj_list.get(current, []):
+            if neighbor not in visited:
+                visited.add(neighbor)
+                queue.append(path + [neighbor])
+
+    return {
+        'found': False,
+        'source': source_id,
+        'target': target_id,
+        'message': '无电气路径连接'
+    }
+
 def main():
     """命令行接口，通过 JSON-RPC 与 Node.js 层通信"""
 
@@ -1857,6 +2472,46 @@ def main():
         elif command == 'aggregate_results':
             results = json.loads(args[0])
             result = aggregate_results(results)
+
+        # Component Analysis commands
+        elif command == 'analyze_components':
+            rid = args[0]
+            detailed = args[1] == 'true' if len(args) > 1 else False
+            result = analyze_components(rid, detailed)
+
+        elif command == 'classify_component':
+            definition = args[0] if len(args) > 0 else None
+            args_json = json.loads(args[1]) if len(args) > 1 else None
+            result = classify_component(definition, args_json)
+
+        elif command == 'get_component_by_id':
+            rid = args[0]
+            component_id = args[1]
+            result = get_component_by_id(rid, component_id)
+
+        elif command == 'get_component_parameters':
+            rid = args[0]
+            component_id = args[1]
+            result = get_component_parameters(rid, component_id)
+
+        elif command == 'get_components_by_type':
+            rid = args[0]
+            component_type = args[1]
+            result = get_components_by_type(rid, component_type)
+
+        # Topology Analysis commands
+        elif command == 'analyze_topology_from_file':
+            file_path = args[0]
+            options = json.loads(args[1]) if len(args) > 1 else None
+            result = analyze_topology_from_file(file_path, options)
+
+        elif command == 'find_topology_path':
+            file_path = args[0]
+            source_id = args[1]
+            target_id = args[2]
+            topology_data = json.loads(args[3]) if len(args) > 3 else None
+            components, connections = _extract_topology_components(topology_data)
+            result = find_topology_path(components, connections, source_id, target_id)
 
         else:
             print(json.dumps({'error': f'Unknown command: {command}'}))

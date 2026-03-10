@@ -16,6 +16,9 @@ const ReportSkill = require('./skills/report');
 const N1ContingencySkill = require('./skills/analyze-n1');
 const HarmonicAnalysisSkill = require('./skills/analyze-harmonic');
 const BatchSimulationSkill = require('./skills/batch-simulation');
+const ModelOverviewSkill = require('./skills/model-overview');
+const ComponentAnalysisSkill = require('./skills/analyze-component');
+const AnalyzeTopologySkill = require('./skills/analyze-topology');
 
 /**
  * CloudPSS Skills 主类
@@ -35,6 +38,9 @@ class CloudPSSSkills {
     this.n1scan = new N1ContingencySkill(this.client);
     this.harmonic = new HarmonicAnalysisSkill(this.client);
     this.batch = new BatchSimulationSkill(this.client);
+    this.modelOverview = new ModelOverviewSkill(this.client);
+    this.component = new ComponentAnalysisSkill(this.client);
+    this.topology = new AnalyzeTopologySkill(this.client);
   }
 
   /**
@@ -71,5 +77,8 @@ module.exports = {
   ReportSkill,
   N1ContingencySkill,
   HarmonicAnalysisSkill,
-  BatchSimulationSkill
+  BatchSimulationSkill,
+  ModelOverviewSkill,
+  ComponentAnalysisSkill,
+  AnalyzeTopologySkill
 };
