@@ -114,17 +114,22 @@ def load_model(file_path: str, format: str = "yaml", compress: str = "gzip") -> 
         }
 
 
-def list_user_projects() -> List[Dict[str, Any]]:
+def list_user_projects(name: str = None, page_size: int = 100, owner: str = None) -> List[Dict[str, Any]]:
     """
     获取用户有权限的项目列表
 
+    Args:
+        name: 查询名称，模糊查询（可选）
+        page_size: 分页大小，默认 100
+        owner: 所有者筛选，默认当前用户；设为 "*" 可获取所有公开项目
+
     Returns:
-        项目列表
+        项目列表，包含 rid, name, description, tags, updatedAt 等字段
     """
-    # 使用 Model.list 获取用户有权限的项目
-    # 注意：CloudPSS SDK 没有直接的项目列表 API，需要通过其他方式获取
-    # 这里返回空列表，用户需要通过 RID 直接访问项目
-    return []
+    # 使用官方 Model.fetchMany API 获取项目列表
+    # 参考: cloudpss/model/model.py Model.fetchMany()
+    models = cloudpss.Model.fetchMany(name=name, pageSize=page_size, owner=owner)
+    return list(models)
 
 
 def create_config(rid: str, name: str) -> Dict[str, Any]:
@@ -2431,7 +2436,11 @@ def main():
             result = load_model(file_path, format, compress)
 
         elif command == 'list_projects':
-            result = list_user_projects()
+            # 支持可选参数: name, page_size, owner
+            name = args[0] if len(args) > 0 else None
+            page_size = int(args[1]) if len(args) > 1 else 100
+            owner = args[2] if len(args) > 2 else None
+            result = list_user_projects(name, page_size, owner)
 
         elif command == 'run_simulation':
             result = run_simulation(args[0], int(args[1]) if len(args) > 1 else 0,

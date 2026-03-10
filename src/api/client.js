@@ -42,10 +42,14 @@ class CloudPSSClient {
 
   /**
    * 获取用户有权限的项目列表
+   * @param {Object} options - 查询选项
+   * @param {string} options.name - 查询名称（模糊查询）
+   * @param {number} options.pageSize - 分页大小，默认 100
+   * @param {string} options.owner - 所有者筛选，默认当前用户；设为 "*" 获取所有公开项目
    * @returns {Promise<Array>} 项目列表
    */
-  async listProjects() {
-    return this.bridge.listProjects();
+  async listProjects(options = {}) {
+    return this.bridge.listProjects(options);
   }
 
   /**
@@ -147,6 +151,29 @@ class CloudPSSClient {
   // =====================================================
   // 元件管理 APIs
   // =====================================================
+
+  /**
+   * 导出算例文件到本地
+   * @param {string} rid - 项目 rid
+   * @param {string} filePath - 保存文件的路径
+   * @param {string} format - 文件格式 ('yaml', 'json')
+   * @param {string} compress - 压缩方式 ('gzip', null)
+   * @returns {Promise<Object>} 导出结果
+   */
+  async dumpModel(rid, filePath, format = 'yaml', compress = 'gzip') {
+    return this.bridge.dumpModel(rid, filePath, format, compress);
+  }
+
+  /**
+   * 从文件导入算例到 CloudPSS
+   * @param {string} filePath - 算例文件路径
+   * @param {string} format - 文件格式
+   * @param {string} compress - 压缩方式
+   * @returns {Promise<Object>} 导入结果（包含新算例的 rid）
+   */
+  async loadModel(filePath, format = 'yaml', compress = 'gzip') {
+    return this.bridge.loadModel(filePath, format, compress);
+  }
 
   /**
    * 获取所有元件

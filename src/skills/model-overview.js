@@ -12,6 +12,8 @@
 
 const fs = require('fs');
 const path = require('path');
+const zlib = require('zlib');
+const yaml = require('js-yaml');
 
 class ModelOverviewSkill {
   constructor(client, options = {}) {
@@ -23,7 +25,7 @@ class ModelOverviewSkill {
   /**
    * 从本地文件加载算例数据
    *
-   * @param {string} filePath - JSON 文件路径
+   * @param {string} filePath - JSON/YAML 文件路径（支持 .gz 压缩）
    * @returns {Object} 算例数据（统一格式）
    */
   loadFromLocalFile(filePath) {
@@ -31,8 +33,23 @@ class ModelOverviewSkill {
     if (!fs.existsSync(absolutePath)) {
       throw new Error(`文件不存在：${absolutePath}`);
     }
-    const content = fs.readFileSync(absolutePath, 'utf-8');
-    const rawData = JSON.parse(content);
+
+    let content;
+    // 检测是否为 gzip 压缩文件
+    if (filePath.endsWith('.gz')) {
+      const compressed = fs.readFileSync(absolutePath);
+      content = zlib.gunzipSync(compressed).toString('utf-8');
+    } else {
+      content = fs.readFileSync(absolutePath, 'utf-8');
+    }
+
+    // 解析 YAML 或 JSON
+    let rawData;
+    if (filePath.includes('.yaml') || filePath.includes('.yml')) {
+      rawData = yaml.load(content);
+    } else {
+      rawData = JSON.parse(content);
+    }
 
     // 检测并转换官方 Model.dump() 格式
     if (this._isOfficialDumpFormat(rawData)) {
@@ -124,9 +141,19 @@ class ModelOverviewSkill {
       data = this.loadFromLocalFile(this.dataFilePath || './experiment-data/ieee3-full-structure.json');
     }
 
+    // 支持两种数据格式
+    // 1. 内部格式: data.model_info.name
+    // 2. 官方 dump 格式: data.name (顶层)
     const modelInfo = data.model_info || {};
     const stats = data.statistics || {};
     const componentsByType = data.components_by_type || {};
+
+    // 基本信息 - 优先从 model_info 获取，否则从顶层获取
+    const name = modelInfo.name || data.name || '未知';
+    const description = modelInfo.description || data.description || '';
+    const rid = modelInfo.rid || data.rid || '';
+    const configs = modelInfo.configs || data.configs || [];
+    const jobs = modelInfo.jobs || data.jobs || [];
 
     // 计算节点数量
     const busCount = componentsByType.bus?.length || 0;
@@ -136,7 +163,7 @@ class ModelOverviewSkill {
 
     // 计算输出通道数量（从 jobs 中获取）
     let outputChannelCount = 0;
-    for (const job of modelInfo.jobs || []) {
+    for (const job of jobs) {
       if (job.args?.output_channels) {
         outputChannelCount += job.args.output_channels.length;
       }
@@ -146,14 +173,16 @@ class ModelOverviewSkill {
     }
 
     return {
-      rid: modelInfo.rid,
-      name: modelInfo.name,
-      description: modelInfo.description,
+      rid,
+      name,
+      description,
       scale: {
-        totalComponents: stats.total_components || 0,
+        totalComponents: stats.total_components || stats.totalComponents || 0,
         busCount,
         outputChannels: outputChannelCount,
-        measurementPoints: measurementCount
+        measurementPoints: measurementCount,
+        configCount: configs.length,
+        jobCount: jobs.length
       },
       exportedAt: data.exported_at
     };
@@ -170,8 +199,9 @@ class ModelOverviewSkill {
       data = this.loadFromLocalFile(this.dataFilePath || './experiment-data/ieee3-full-structure.json');
     }
 
+    // 支持两种数据格式
     const modelInfo = data.model_info || {};
-    const configs = modelInfo.configs || [];
+    const configs = modelInfo.configs || data.configs || [];
 
     return {
       totalConfigs: configs.length,
@@ -199,8 +229,9 @@ class ModelOverviewSkill {
       data = this.loadFromLocalFile(this.dataFilePath || './experiment-data/ieee3-full-structure.json');
     }
 
+    // 支持两种数据格式
     const modelInfo = data.model_info || {};
-    const jobs = modelInfo.jobs || [];
+    const jobs = modelInfo.jobs || data.jobs || [];
 
     return {
       totalJobs: jobs.length,

@@ -17,6 +17,8 @@
 
 const fs = require('fs');
 const path = require('path');
+const zlib = require('zlib');
+const yaml = require('js-yaml');
 
 class ComponentAnalysisSkill {
   constructor(client, options = {}) {
@@ -154,7 +156,7 @@ class ComponentAnalysisSkill {
   /**
    * 从本地文件加载算例数据（支持官方 dump 格式）
    *
-   * @param {string} filePath - JSON 文件路径
+   * @param {string} filePath - JSON/YAML 文件路径（支持 .gz 压缩）
    * @returns {Object} 算例数据（统一格式）
    */
   loadFromLocalFile(filePath) {
@@ -162,8 +164,23 @@ class ComponentAnalysisSkill {
     if (!fs.existsSync(absolutePath)) {
       throw new Error(`文件不存在：${absolutePath}`);
     }
-    const content = fs.readFileSync(absolutePath, 'utf-8');
-    const rawData = JSON.parse(content);
+
+    let content;
+    // 检测是否为 gzip 压缩文件
+    if (filePath.endsWith('.gz')) {
+      const compressed = fs.readFileSync(absolutePath);
+      content = zlib.gunzipSync(compressed).toString('utf-8');
+    } else {
+      content = fs.readFileSync(absolutePath, 'utf-8');
+    }
+
+    // 解析 YAML 或 JSON
+    let rawData;
+    if (filePath.includes('.yaml') || filePath.includes('.yml')) {
+      rawData = yaml.load(content);
+    } else {
+      rawData = JSON.parse(content);
+    }
 
     // 检测并转换官方 Model.dump() 格式
     if (this._isOfficialDumpFormat(rawData)) {
@@ -491,6 +508,222 @@ class ComponentAnalysisSkill {
       ),
       uniqueParameters: allParams.size
     };
+  }
+
+  // =====================================================
+  // P1 技能: 元件参数提取
+  // =====================================================
+
+  /**
+   * 获取元件详细参数
+   *
+   * @param {string} componentType - 元件类型 (generator, transformer, line, load 等)
+   * @param {Object} data - 算例数据（可选）
+   * @returns {Object} 元件参数详情
+   */
+  getComponentParameters(componentType, data = null) {
+    if (!data) {
+      data = this.loadFromLocalFile(this.dataFilePath);
+    }
+
+    const components = data.all_components || data.components || [];
+    const classified = this.classifyComponents(components);
+    const targetComponents = classified[componentType] || [];
+
+    if (targetComponents.length === 0) {
+      return { found: false, message: `未找到类型为 ${componentType} 的元件` };
+    }
+
+    // 提取参数详情
+    const paramDetails = targetComponents.map(comp => {
+      const args = comp.args || {};
+      return {
+        id: comp.id,
+        label: comp.label,
+        definition: comp.definition,
+        parameters: this._extractKeyParameters(componentType, args)
+      };
+    });
+
+    return {
+      found: true,
+      type: componentType,
+      count: targetComponents.length,
+      components: paramDetails
+    };
+  }
+
+  /**
+   * 提取元件的关键参数
+   *
+   * @param {string} type - 元件类型
+   * @param {Object} args - 参数对象
+   * @returns {Object} 关键参数
+   */
+  _extractKeyParameters(type, args) {
+    const result = {};
+
+    // 根据元件类型提取关键参数
+    switch (type) {
+      case 'generator':
+        // 发电机关键参数
+        result.name = this._extractParamValue(args.Name || args.name);
+        result.capacity = this._extractParamValue(args.Smva || args.Sn || args.capacity);
+        result.activePower = this._extractParamValue(args.pf_P || args.P || args.Pg);
+        result.reactivePower = this._extractParamValue(args.pf_Q || args.Q || args.Qg);
+        result.voltage = this._extractParamValue(args.pf_V || args.V_mag || args.V);
+        result.frequency = this._extractParamValue(args.freq);
+        result.inertia = this._extractParamValue(args.Tj);
+        result.xd = this._extractParamValue(args.Xd);
+        result.xq = this._extractParamValue(args.Xq);
+        break;
+
+      case 'transformer':
+        // 变压器关键参数
+        result.name = this._extractParamValue(args.Name || args.name);
+        result.capacity = this._extractParamValue(args.Tmva || args.Sn);
+        result.primaryVoltage = this._extractParamValue(args.V1);
+        result.secondaryVoltage = this._extractParamValue(args.V2);
+        result.tapRatio = this._extractParamValue(args.Tap || args.InitTap);
+        result.leakageReactance = this._extractParamValue(args.Xl || args.Xac);
+        break;
+
+      case 'line':
+        // 线路关键参数
+        result.name = this._extractParamValue(args.Name || args.name);
+        result.length = this._extractParamValue(args.length || args.Length);
+        result.resistance = this._extractParamValue(args.R);
+        result.reactance = this._extractParamValue(args.X);
+        result.susceptance = this._extractParamValue(args.B);
+        result.rating = this._extractParamValue(args.Rate || args.rating);
+        break;
+
+      case 'load':
+        // 负荷关键参数
+        result.name = this._extractParamValue(args.Name || args.name);
+        result.activePower = this._extractParamValue(args.P || args.Pd || args.Pload);
+        result.reactivePower = this._extractParamValue(args.Q || args.Qd || args.Qload);
+        break;
+
+      case 'bus':
+        // 母线关键参数
+        result.name = this._extractParamValue(args.Name || args.name);
+        result.nominalVoltage = this._extractParamValue(args.Vn || args.Vbase);
+        result.baseVoltage = this._extractParamValue(args.Vb);
+        break;
+
+      default:
+        // 通用参数提取
+        result.raw = args;
+    }
+
+    return result;
+  }
+
+  /**
+   * 提取参数值（处理 source 格式）
+   */
+  _extractParamValue(param) {
+    if (!param) return null;
+    if (typeof param === 'number' || typeof param === 'string') {
+      return param;
+    }
+    if (typeof param === 'object' && param.source) {
+      return param.source;
+    }
+    return param;
+  }
+
+  /**
+   * 获取负荷参数详情
+   *
+   * @param {Object} data - 算例数据（可选）
+   * @returns {Object} 负荷参数详情
+   */
+  getLoadParameters(data = null) {
+    return this.getComponentParameters('load', data);
+  }
+
+  /**
+   * 获取总负荷
+   *
+   * @param {Object} data - 算例数据（可选）
+   * @returns {Object} 总负荷信息
+   */
+  getTotalLoad(data = null) {
+    const loadParams = this.getLoadParameters(data);
+
+    if (!loadParams.found) {
+      return { found: false, totalP: 0, totalQ: 0 };
+    }
+
+    let totalP = 0;
+    let totalQ = 0;
+    const loadDetails = [];
+
+    for (const load of loadParams.components) {
+      const P = parseFloat(load.parameters.activePower) || 0;
+      const Q = parseFloat(load.parameters.reactivePower) || 0;
+      totalP += P;
+      totalQ += Q;
+      loadDetails.push({
+        label: load.label,
+        P: P,
+        Q: Q
+      });
+    }
+
+    return {
+      found: true,
+      totalP: parseFloat(totalP.toFixed(2)),
+      totalQ: parseFloat(totalQ.toFixed(2)),
+      count: loadParams.count,
+      details: loadDetails,
+      maxLoad: loadDetails.length > 0
+        ? loadDetails.reduce((max, l) => l.P > max.P ? l : max, loadDetails[0])
+        : null
+    };
+  }
+
+  /**
+   * 获取发电机容量排名
+   *
+   * @param {Object} data - 算例数据（可选）
+   * @returns {Object} 发电机容量排名
+   */
+  getGeneratorCapacityRanking(data = null) {
+    const genParams = this.getComponentParameters('generator', data);
+
+    if (!genParams.found) {
+      return { found: false, generators: [] };
+    }
+
+    const generators = genParams.components
+      .map(g => ({
+        label: g.label,
+        capacity: parseFloat(g.parameters.capacity) || 0,
+        activePower: parseFloat(g.parameters.activePower) || 0,
+        voltage: g.parameters.voltage
+      }))
+      .sort((a, b) => b.capacity - a.capacity);
+
+    return {
+      found: true,
+      count: generators.length,
+      generators: generators,
+      maxCapacity: generators.length > 0 ? generators[0] : null,
+      totalCapacity: generators.reduce((sum, g) => sum + g.capacity, 0)
+    };
+  }
+
+  /**
+   * 获取线路参数
+   *
+   * @param {Object} data - 算例数据（可选）
+   * @returns {Object} 线路参数详情
+   */
+  getLineParameters(data = null) {
+    return this.getComponentParameters('line', data);
   }
 }
 

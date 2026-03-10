@@ -38,7 +38,9 @@ class CloudPSSPythonBridge {
 
       // Ensure args is always an array
       const argsArray = Array.isArray(args) ? args : [args];
-      const proc = spawn(this.pythonPath, [this.wrapperPath, command, ...argsArray], {
+      const allArgs = [this.wrapperPath, command, ...argsArray];
+
+      const proc = spawn(this.pythonPath, allArgs, {
         env,
         cwd: path.join(__dirname, '../../'),
         stdio: ['pipe', 'pipe', 'pipe']
@@ -99,7 +101,7 @@ class CloudPSSPythonBridge {
    * @param {string} compress - 压缩方式 ('gzip', null)
    */
   async dumpModel(rid, filePath, format = 'yaml', compress = 'gzip') {
-    return this._exec('dump_model', rid, filePath, format, compress);
+    return this._exec('dump_model', [rid, filePath, format, compress]);
   }
 
   /**
@@ -109,14 +111,23 @@ class CloudPSSPythonBridge {
    * @param {string} compress - 压缩方式
    */
   async loadModel(filePath, format = 'yaml', compress = 'gzip') {
-    return this._exec('load_model', filePath, format, compress);
+    return this._exec('load_model', [filePath, format, compress]);
   }
 
   /**
    * 获取用户有权限的项目列表
+   * @param {Object} options - 查询选项
+   * @param {string} options.name - 查询名称（模糊查询）
+   * @param {number} options.pageSize - 分页大小，默认 100
+   * @param {string} options.owner - 所有者筛选，默认当前用户；设为 "*" 获取所有公开项目
    */
-  async listProjects() {
-    return this._exec('list_projects');
+  async listProjects(options = {}) {
+    const { name, pageSize = 100, owner } = options;
+    const args = [];
+    if (name) args.push(name);
+    if (pageSize !== 100 || args.length > 0) args.push(pageSize.toString());
+    if (owner) args.push(owner);
+    return this._exec('list_projects', ...args);
   }
 
   /**
