@@ -1,0 +1,105 @@
+{
+  "experiment": "multi-agent-validation",
+  "session_id": "session-2026-03-09T1456",
+  "mode": "multi-agent",
+  "timestamp": {
+    "start": "2026-03-09T14:56:19.711Z",
+    "end": "2026-03-09T14:56:20.714Z",
+    "duration_ms": 1003
+  },
+  "metrics": {
+    "efficiency": {
+      "duration_seconds": 1.003,
+      "tool_calls": 2,
+      "tools_breakdown": [
+        {
+          "name": "Read",
+          "call_count": 1,
+          "avg_duration_ms": 150,
+          "success_rate": 1
+        },
+        {
+          "name": "Edit",
+          "call_count": 1,
+          "avg_duration_ms": 320,
+          "success_rate": 1
+        }
+      ],
+      "tasks_created": 2,
+      "tasks_completed": 0
+    },
+    "quality": {
+      "code_review_count": 0,
+      "avg_code_review_score": 0,
+      "test_result_count": 0,
+      "avg_test_pass_rate": 0
+    },
+    "collaboration": {
+      "agent_message_count": 1,
+      "conflict_count": 0,
+      "conflicts_resolved": 0,
+      "avg_conflict_resolution_time_ms": 0,
+      "knowledge_share_count": 0
+    }
+  },
+  "events": [
+    {
+      "offset_ms": 2,
+      "timestamp": "2026-03-09T14:56:19.713Z",
+      "type": "task_create",
+      "taskId": "task-1",
+      "subject": "Design architecture",
+      "mode": "multi-agent",
+      "agent": "orchestrator"
+    },
+    {
+      "offset_ms": 2,
+      "timestamp": "2026-03-09T14:56:19.713Z",
+      "type": "task_create",
+      "taskId": "task-2",
+      "subject": "Implement module",
+      "mode": "multi-agent",
+      "agent": "orchestrator"
+    },
+    {
+      "offset_ms": 2,
+      "timestamp": "2026-03-09T14:56:19.713Z",
+      "type": "tool_call",
+      "toolName": "Read",
+      "duration_ms": 150,
+      "success": true
+    },
+    {
+      "offset_ms": 2,
+      "timestamp": "2026-03-09T14:56:19.713Z",
+      "type": "tool_call",
+      "toolName": "Edit",
+      "duration_ms": 320,
+      "success": true
+    },
+    {
+      "offset_ms": 2,
+      "timestamp": "2026-03-09T14:56:19.713Z",
+      "type": "agent_message",
+      "fromAgent": "orchestrator",
+      "toAgent": "engineer",
+      "messageType": "task_assignment"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-1",
+      "subject": "Design architecture",
+      "mode": "multi-agent",
+      "status": "pending",
+      "duration_ms": null
+    },
+    {
+      "id": "task-2",
+      "subject": "Implement module",
+      "mode": "multi-agent",
+      "status": "pending",
+      "duration_ms": null
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "agents": [
+    {
+      "agent_id": "a5592d739d6100d4e",
+      "agent_type": "deep-research-agent",
+      "started_at": "2026-03-09T14:53:59.911Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-03-09T14:58:58.045Z",
+      "duration_ms": 298134
+    },
+    {
+      "agent_id": "a439ab2936a9766fe",
+      "agent_type": "backend-architect",
+      "started_at": "2026-03-09T15:00:15.259Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-03-09T15:09:14.762Z",
+      "duration_ms": 539503
+    },
+    {
+      "agent_id": "a867442e57537d0e4",
+      "agent_type": "python-expert",
+      "started_at": "2026-03-09T15:00:15.264Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-03-09T15:11:13.070Z",
+      "duration_ms": 657806
+    },
+    {
+      "agent_id": "a543aa80f332720dc",
+      "agent_type": "python-expert",
+      "started_at": "2026-03-09T15:11:53.087Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-03-09T15:22:51.888Z",
+      "duration_ms": 658801
+    }
+  ],
+  "total_spawned": 3,
+  "total_completed": 4,
+  "total_failed": 0,
+  "last_updated": "2026-03-09T15:22:51.989Z"
+}

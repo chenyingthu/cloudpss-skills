@@ -1,0 +1,79 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Multi-Agent Experiment Metrics Schema",
+  "type": "object",
+  "required": ["experiment", "mode", "timestamp", "metrics"],
+  "properties": {
+    "experiment": {
+      "type": "string",
+      "enum": ["simple-feature", "module-refactor", "new-module"],
+      "description": "实验场景类型"
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["single-agent", "multi-agent"],
+      "description": "实验模式"
+    },
+    "timestamp": {
+      "type": "object",
+      "properties": {
+        "start": { "type": "string", "format": "date-time" },
+        "end": { "type": "string", "format": "date-time" }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "properties": {
+        "efficiency": {
+          "type": "object",
+          "properties": {
+            "duration_seconds": { "type": "number" },
+            "iteration_count": { "type": "integer" },
+            "test_pass_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+            "parallel_tasks_max": { "type": "integer" }
+          }
+        },
+        "quality": {
+          "type": "object",
+          "properties": {
+            "code_review_score": { "type": "number", "minimum": 1, "maximum": 5 },
+            "bug_density_per_kloc": { "type": "number" },
+            "solid_compliance": { "type": "object" },
+            "doc_coverage_ratio": { "type": "number" }
+          }
+        },
+        "collaboration": {
+          "type": "object",
+          "properties": {
+            "agent_message_count": { "type": "integer" },
+            "conflict_resolution_time_seconds": { "type": "number" },
+            "knowledge_reuse_count": { "type": "integer" }
+          }
+        }
+      }
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "offset_ms": { "type": "number" },
+          "type": { "type": "string" },
+          "agent": { "type": "string" },
+          "details": { "type": "object" }
+        }
+      }
+    },
+    "tools_used": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "call_count": { "type": "integer" },
+          "avg_duration_ms": { "type": "number" }
+        }
+      }
+    }
+  }
+}

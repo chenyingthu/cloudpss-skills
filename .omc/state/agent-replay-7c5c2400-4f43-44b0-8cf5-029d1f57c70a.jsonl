@@ -1,0 +1,8 @@
+{"t":0,"agent":"a5592d7","agent_type":"deep-research-agent","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"a5592d7","agent_type":"deep-research-agent","event":"agent_stop","success":true,"duration_ms":298134}
+{"t":0,"agent":"a439ab2","agent_type":"backend-architect","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"a867442","agent_type":"python-expert","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"a439ab2","agent_type":"backend-architect","event":"agent_stop","success":true,"duration_ms":539503}
+{"t":0,"agent":"a867442","agent_type":"python-expert","event":"agent_stop","success":true,"duration_ms":657806}
+{"t":0,"agent":"a543aa8","agent_type":"python-expert","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"a543aa8","agent_type":"python-expert","event":"agent_stop","success":true,"duration_ms":658801}
