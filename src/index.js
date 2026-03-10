@@ -18,7 +18,7 @@ const HarmonicAnalysisSkill = require('./skills/analyze-harmonic');
 const BatchSimulationSkill = require('./skills/batch-simulation');
 const ModelOverviewSkill = require('./skills/model-overview');
 const ComponentAnalysisSkill = require('./skills/analyze-component');
-const AnalyzeTopologySkill = require('./skills/analyze-topology');
+const TopologyAnalysisSkill = require('./skills/topology-analysis');
 
 /**
  * CloudPSS Skills 主类
@@ -40,7 +40,7 @@ class CloudPSSSkills {
     this.batch = new BatchSimulationSkill(this.client);
     this.modelOverview = new ModelOverviewSkill(this.client);
     this.component = new ComponentAnalysisSkill(this.client);
-    this.topology = new AnalyzeTopologySkill(this.client);
+    this.topologyAnalysis = new TopologyAnalysisSkill(this.client);
   }
 
   /**
@@ -80,5 +80,5 @@ module.exports = {
   BatchSimulationSkill,
   ModelOverviewSkill,
   ComponentAnalysisSkill,
-  AnalyzeTopologySkill
+  TopologyAnalysisSkill
 };
