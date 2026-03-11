@@ -6,7 +6,7 @@
 
 const CloudPSSClient = require('./api/client');
 
-// Skills
+// Skills - Original
 const CreateSkill = require('./skills/create');
 const ManageSkill = require('./skills/manage');
 const ExtractSkill = require('./skills/extract');
@@ -19,10 +19,27 @@ const BatchSimulationSkill = require('./skills/batch-simulation');
 const ModelOverviewSkill = require('./skills/model-overview');
 const ComponentAnalysisSkill = require('./skills/analyze-component');
 const TopologyAnalysisSkill = require('./skills/topology-analysis');
+
+// Skills - Enhanced
 const PowerFlowAnalysisSkill = require('./skills/power-flow-analysis');
 const N1ContingencyAnalysisSkill = require('./skills/n1-contingency-analysis');
 const BatchSimulationEnhancedSkill = require('./skills/batch-simulation-enhanced');
 const ModelManagementEnhancedSkill = require('./skills/model-management-enhanced');
+
+// Skills - New (US-004, US-005, US-008, etc.)
+const ModelEditorSkill = require('./skills/model-editor');
+
+// Skills - New (US-014, US-015, US-017, US-025, US-026)
+const AdvancedAnalysisSkill = require('./skills/advanced-analysis');
+
+// Skills - New (US-020)
+const VisualizationSkill = require('./skills/visualization');
+
+// Skills - New (US-028, US-035)
+const StabilityAnalysisSkill = require('./skills/stability-analysis');
+
+// Skills - New (US-044, US-046, US-047, US-048)
+const OperationSupportSkill = require('./skills/operation-support');
 
 /**
  * CloudPSS Skills 主类
@@ -32,7 +49,7 @@ class CloudPSSSkills {
     this.client = new CloudPSSClient(options);
     this.options = options;
 
-    // 初始化技能
+    // 初始化技能 - Original
     this.create = new CreateSkill(this.client);
     this.manage = new ManageSkill(this.client);
     this.extract = new ExtractSkill(this.client);
@@ -45,10 +62,19 @@ class CloudPSSSkills {
     this.modelOverview = new ModelOverviewSkill(this.client);
     this.component = new ComponentAnalysisSkill(this.client);
     this.topologyAnalysis = new TopologyAnalysisSkill(this.client);
+
+    // 初始化技能 - Enhanced
     this.powerFlow = new PowerFlowAnalysisSkill(this.client);
     this.n1Analysis = new N1ContingencyAnalysisSkill(this.client);
     this.batchEnhanced = new BatchSimulationEnhancedSkill(this.client);
     this.modelManagement = new ModelManagementEnhancedSkill(this.client);
+
+    // 初始化技能 - New
+    this.modelEditor = new ModelEditorSkill(this.client);
+    this.advancedAnalysis = new AdvancedAnalysisSkill(this.client);
+    this.visualization = new VisualizationSkill(this.client);
+    this.stabilityAnalysis = new StabilityAnalysisSkill(this.client);
+    this.operationSupport = new OperationSupportSkill(this.client);
   }
 
   /**
@@ -77,6 +103,7 @@ class CloudPSSSkills {
 module.exports = {
   CloudPSSSkills,
   CloudPSSClient,
+  // Original Skills
   CreateSkill,
   ManageSkill,
   ExtractSkill,
@@ -89,8 +116,15 @@ module.exports = {
   ModelOverviewSkill,
   ComponentAnalysisSkill,
   TopologyAnalysisSkill,
+  // Enhanced Skills
   PowerFlowAnalysisSkill,
   N1ContingencyAnalysisSkill,
   BatchSimulationEnhancedSkill,
-  ModelManagementEnhancedSkill
+  ModelManagementEnhancedSkill,
+  // New Skills
+  ModelEditorSkill,
+  AdvancedAnalysisSkill,
+  VisualizationSkill,
+  StabilityAnalysisSkill,
+  OperationSupportSkill
 };
