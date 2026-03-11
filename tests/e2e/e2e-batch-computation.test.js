@@ -113,18 +113,19 @@ async function main() {
   });
 
   await runTest('US-030: 配置负荷增长扫描', async () => {
-    // 配置扫描参数 - 减少扫描点数避免超时
+    // 配置扫描参数 - 使用百分比格式，与loadGrowthScan函数参数匹配
+    // startPercent/endPercent 是百分比值，step 是百分比步长
     global.loadGrowthConfig = {
-      startFactor: 1.0,    // 从当前负荷开始
-      endFactor: 1.3,      // 增长到130% (减少范围)
-      step: 0.1,           // 步长10%
+      startPercent: 100,    // 从100%开始
+      endPercent: 130,      // 增长到130%
+      step: 10,             // 步长10% (只生成4个场景)
       checkViolations: true
     };
 
     console.log(`   扫描配置:`);
-    console.log(`   - 起始负荷系数: ${global.loadGrowthConfig.startFactor}`);
-    console.log(`   - 终止负荷系数: ${global.loadGrowthConfig.endFactor}`);
-    console.log(`   - 步长: ${global.loadGrowthConfig.step}`);
+    console.log(`   - 起始负荷: ${global.loadGrowthConfig.startPercent}%`);
+    console.log(`   - 终止负荷: ${global.loadGrowthConfig.endPercent}%`);
+    console.log(`   - 步长: ${global.loadGrowthConfig.step}%`);
     console.log(`   - 基准有功负荷: ${global.baseLoadP.toFixed(2)} MW`);
   });
 
@@ -147,8 +148,8 @@ async function main() {
 
     try {
       const scanResult = await skills.batchEnhanced.loadGrowthScan(rid, {
-        startFactor: global.loadGrowthConfig.startFactor,
-        endFactor: global.loadGrowthConfig.endFactor,
+        startPercent: global.loadGrowthConfig.startPercent,
+        endPercent: global.loadGrowthConfig.endPercent,
         step: global.loadGrowthConfig.step,
         checkViolations: true
       });
@@ -162,10 +163,10 @@ async function main() {
       // 显示扫描进度
       if (scanResult.results) {
         scanResult.results.forEach((r, i) => {
-          const factor = global.loadGrowthConfig.startFactor + i * global.loadGrowthConfig.step;
+          const percent = global.loadGrowthConfig.startPercent + i * global.loadGrowthConfig.step;
           const status = r.converged ? '✅ 收敛' : '❌ 不收敛';
           const violations = r.violationCount || 0;
-          console.log(`   - 负荷系数 ${factor.toFixed(1)}: ${status}, 越限 ${violations} 处`);
+          console.log(`   - 负荷 ${percent}%: ${status}, 越限 ${violations} 处`);
         });
       }
 
@@ -177,19 +178,18 @@ async function main() {
 
       global.loadGrowthResult = {
         results: [
-          { factor: 1.0, converged: true, violationCount: 0, totalLoss: 45.2 },
-          { factor: 1.1, converged: true, violationCount: 0, totalLoss: 52.8 },
-          { factor: 1.2, converged: true, violationCount: 2, totalLoss: 61.5 },
-          { factor: 1.3, converged: true, violationCount: 5, totalLoss: 72.3 },
-          { factor: 1.4, converged: false, violationCount: null, totalLoss: null },
-          { factor: 1.5, converged: false, violationCount: null, totalLoss: null }
+          { percent: 100, converged: true, violationCount: 0, totalLoss: 45.2 },
+          { percent: 110, converged: true, violationCount: 0, totalLoss: 52.8 },
+          { percent: 120, converged: true, violationCount: 2, totalLoss: 61.5 },
+          { percent: 130, converged: true, violationCount: 5, totalLoss: 72.3 }
         ]
       };
 
       global.loadGrowthResult.results.forEach((r, i) => {
         const status = r.converged ? '✅ 收敛' : '❌ 不收敛';
         const violations = r.violationCount ?? 'N/A';
-        console.log(`   - 负荷系数 ${r.factor.toFixed(1)}: ${status}, 越限 ${violations} 处`);
+        const percent = r.percent || (global.loadGrowthConfig.startPercent + i * global.loadGrowthConfig.step);
+        console.log(`   - 负荷 ${percent}%: ${status}, 越限 ${violations} 处`);
       });
     }
   });
@@ -208,34 +208,35 @@ async function main() {
       criticalIndex = results.findIndex(r => (r.violationCount || 0) > 5);
     }
 
-    let criticalFactor;
-    let previousFactor;
+    let criticalPercent;
+    let previousPercent;
 
     if (criticalIndex > 0) {
-      criticalFactor = results[criticalIndex].factor;
-      previousFactor = results[criticalIndex - 1].factor;
+      criticalPercent = results[criticalIndex].percent || (global.loadGrowthConfig.startPercent + criticalIndex * global.loadGrowthConfig.step);
+      previousPercent = results[criticalIndex - 1].percent || (global.loadGrowthConfig.startPercent + (criticalIndex - 1) * global.loadGrowthConfig.step);
     } else if (criticalIndex === 0) {
-      criticalFactor = results[0].factor;
-      previousFactor = results[0].factor;
+      criticalPercent = results[0].percent || global.loadGrowthConfig.startPercent;
+      previousPercent = results[0].percent || global.loadGrowthConfig.startPercent;
     } else {
       // 全部可接受
-      criticalFactor = results[results.length - 1].factor;
-      previousFactor = criticalFactor;
+      criticalPercent = results[results.length - 1].percent || global.loadGrowthConfig.endPercent;
+      previousPercent = criticalPercent;
     }
 
+    const criticalFactor = criticalPercent / 100;
     const criticalLoad = global.baseLoadP * criticalFactor;
 
     console.log(`   临界分析结果:`);
-    console.log(`   - 临界负荷系数: ${criticalFactor.toFixed(2)}`);
-    console.log(`   - 临界有功负荷: ${criticalLoad.toFixed(2)} MW`);
-    console.log(`   - 相对当前负荷增长: ${((criticalFactor - 1) * 100).toFixed(1)}%`);
+    console.log(`   - 临界负荷水平: ${criticalPercent}%`);
+    console.log(`   - 临界有功负荷: ${criticalLoad?.toFixed(2) || 'N/A'} MW`);
+    console.log(`   - 相对当前负荷增长: ${(criticalPercent - 100).toFixed(1)}%`);
 
     // 计算安全裕度
-    const safeFactor = criticalIndex > 0 ? previousFactor : criticalFactor;
-    const margin = ((safeFactor - 1) * 100).toFixed(1);
+    const safePercent = criticalIndex > 0 ? previousPercent : criticalPercent;
+    const margin = (safePercent - 100).toFixed(1);
     console.log(`   - 安全负荷裕度: ${margin}%`);
 
-    global.criticalFactor = criticalFactor;
+    global.criticalPercent = criticalPercent;
     global.criticalLoad = criticalLoad;
     global.safeMargin = parseFloat(margin);
   });
@@ -290,19 +291,20 @@ async function main() {
 
     report += '─── 基本信息 ───\n';
     report += `基准有功负荷: ${global.baseLoadP?.toFixed(2) || 'N/A'} MW\n`;
-    report += `扫描范围: ${global.loadGrowthConfig.startFactor} ~ ${global.loadGrowthConfig.endFactor}\n`;
-    report += `步长: ${global.loadGrowthConfig.step}\n\n`;
+    report += `扫描范围: ${global.loadGrowthConfig.startPercent}% ~ ${global.loadGrowthConfig.endPercent}%\n`;
+    report += `步长: ${global.loadGrowthConfig.step}%\n\n`;
 
     report += '─── 扫描结果 ───\n';
-    global.loadGrowthResult.results.forEach(r => {
+    global.loadGrowthResult.results.forEach((r, i) => {
       const status = r.converged ? '✅' : '❌';
       const violations = r.violationCount ?? 'N/A';
       const loss = r.totalLoss?.toFixed(2) || 'N/A';
-      report += `负荷系数 ${r.factor.toFixed(1)}: ${status} 越限=${violations} 网损=${loss} MW\n`;
+      const percent = r.percent || (global.loadGrowthConfig.startPercent + i * global.loadGrowthConfig.step);
+      report += `负荷 ${percent}%: ${status} 越限=${violations} 网损=${loss} MW\n`;
     });
 
     report += '\n─── 临界分析 ───\n';
-    report += `临界负荷系数: ${global.criticalFactor?.toFixed(2) || 'N/A'}\n`;
+    report += `临界负荷水平: ${global.criticalPercent || 'N/A'}%\n`;
     report += `临界有功负荷: ${global.criticalLoad?.toFixed(2) || 'N/A'} MW\n`;
     report += `安全负荷裕度: ${global.safeMargin || 'N/A'}%\n\n`;
 

@@ -236,8 +236,8 @@ async function main() {
     const rid = global.testRid || TEST_RID;
 
     try {
-      const batchResult = await skills.batchEnhanced.runPowerFlowBatch(rid, {
-        scenarios: global.scenarios
+      const batchResult = await skills.batchEnhanced.runPowerFlowBatch(rid, global.scenarios, {
+        maxParallel: 2
       });
 
       if (!batchResult.results || batchResult.results.length === 0) {

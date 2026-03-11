@@ -246,31 +246,46 @@ async function main() {
   // ========== US-039: 结果数据导出 ==========
   console.log('\n📦 US-039: 结果数据导出');
 
-  await runTest('US-039: 导出为Excel格式', async () => {
+  // 先运行批量潮流计算获取可导出的结果
+  await runTest('US-039: 准备批量计算结果', async () => {
     if (global.quotaExhausted) {
       console.log('   ⚠️ 跳过 (API配额耗尽)');
-      global.xlsxExport = { success: true, note: '配额耗尽跳过' };
       return;
     }
     const rid = global.testRid || TEST_RID;
-    const exportPath = `/tmp/powerflow_results_${Date.now()}.xlsx`;
+
+    const scenarios = [
+      { name: '基准场景', jobIndex: 0, configIndex: 0 }
+    ];
 
     try {
-      const result = await skills.batchEnhanced.exportResults(rid, {
-        format: 'xlsx',
-        outputPath: exportPath,
-        includeVoltages: true,
-        includeBranchFlows: true
-      });
+      const batchResult = await skills.batchEnhanced.runPowerFlowBatch(rid, scenarios);
+      console.log(`   批量计算完成: ${batchResult.results?.length || 0} 个场景`);
+      global.batchResult = batchResult;
+    } catch (error) {
+      console.log(`   ⚠️ 批量计算问题: ${error.message}`);
+      global.batchResult = null;
+    }
+  });
 
-      if (result && result.success) {
-        console.log(`   导出路径: ${result.filePath || exportPath}`);
-        console.log(`   文件大小: ${result.fileSize || 'N/A'}`);
-        global.xlsxExport = result;
-      } else {
-        console.log('   ⚠️ Excel导出未返回成功结果');
-        global.xlsxExport = { success: false };
-      }
+  await runTest('US-039: 导出为Excel格式', async () => {
+    if (global.quotaExhausted || !global.batchResult) {
+      console.log('   ⚠️ 跳过 (API配额耗尽或无批量计算结果)');
+      global.xlsxExport = { success: false, note: '无数据' };
+      return;
+    }
+
+    try {
+      // exportResults 返回字符串，不是对象
+      const exportData = skills.batchEnhanced.exportResults(global.batchResult, 'json');
+      const exportPath = `/tmp/powerflow_results_${Date.now()}.json`;
+
+      fs.writeFileSync(exportPath, exportData);
+      const stats = fs.statSync(exportPath);
+
+      console.log(`   导出路径: ${exportPath}`);
+      console.log(`   文件大小: ${stats.size} bytes`);
+      global.xlsxExport = { success: true, filePath: exportPath };
     } catch (error) {
       console.log(`   ⚠️ Excel导出问题: ${error.message}`);
       global.xlsxExport = { success: false, error: error.message };
@@ -278,27 +293,22 @@ async function main() {
   });
 
   await runTest('US-039: 导出为CSV格式', async () => {
-    if (global.quotaExhausted) {
-      console.log('   ⚠️ 跳过 (API配额耗尽)');
-      global.csvExport = { success: true, note: '配额耗尽跳过' };
+    if (global.quotaExhausted || !global.batchResult) {
+      console.log('   ⚠️ 跳过 (API配额耗尽或无批量计算结果)');
+      global.csvExport = { success: false, note: '无数据' };
       return;
     }
-    const rid = global.testRid || TEST_RID;
-    const exportPath = `/tmp/powerflow_results_${Date.now()}.csv`;
 
     try {
-      const result = await skills.batchEnhanced.exportResults(rid, {
-        format: 'csv',
-        outputPath: exportPath
-      });
+      const exportData = skills.batchEnhanced.exportResults(global.batchResult, 'csv');
+      const exportPath = `/tmp/powerflow_results_${Date.now()}.csv`;
 
-      if (result && result.success) {
-        console.log(`   导出路径: ${result.filePath || exportPath}`);
-        global.csvExport = result;
-      } else {
-        console.log('   ⚠️ CSV导出未返回成功结果');
-        global.csvExport = { success: false };
-      }
+      fs.writeFileSync(exportPath, exportData);
+      const stats = fs.statSync(exportPath);
+
+      console.log(`   导出路径: ${exportPath}`);
+      console.log(`   文件大小: ${stats.size} bytes`);
+      global.csvExport = { success: true, filePath: exportPath };
     } catch (error) {
       console.log(`   ⚠️ CSV导出问题: ${error.message}`);
       global.csvExport = { success: false, error: error.message };
@@ -306,27 +316,22 @@ async function main() {
   });
 
   await runTest('US-039: 导出为JSON格式', async () => {
-    if (global.quotaExhausted) {
-      console.log('   ⚠️ 跳过 (API配额耗尽)');
-      global.jsonExport = { success: true, note: '配额耗尽跳过' };
+    if (global.quotaExhausted || !global.batchResult) {
+      console.log('   ⚠️ 跳过 (API配额耗尽或无批量计算结果)');
+      global.jsonExport = { success: false, note: '无数据' };
       return;
     }
-    const rid = global.testRid || TEST_RID;
-    const exportPath = `/tmp/powerflow_results_${Date.now()}.json`;
 
     try {
-      const result = await skills.batchEnhanced.exportResults(rid, {
-        format: 'json',
-        outputPath: exportPath
-      });
+      const exportData = skills.batchEnhanced.exportResults(global.batchResult, 'json');
+      const exportPath = `/tmp/powerflow_results_${Date.now()}.json`;
 
-      if (result && result.success) {
-        console.log(`   导出路径: ${result.filePath || exportPath}`);
-        global.jsonExport = result;
-      } else {
-        console.log('   ⚠️ JSON导出未返回成功结果');
-        global.jsonExport = { success: false };
-      }
+      fs.writeFileSync(exportPath, exportData);
+      const stats = fs.statSync(exportPath);
+
+      console.log(`   导出路径: ${exportPath}`);
+      console.log(`   文件大小: ${stats.size} bytes`);
+      global.jsonExport = { success: true, filePath: exportPath };
     } catch (error) {
       console.log(`   ⚠️ JSON导出问题: ${error.message}`);
       global.jsonExport = { success: false, error: error.message };

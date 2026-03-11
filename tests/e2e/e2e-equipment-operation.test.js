@@ -266,8 +266,11 @@ async function main() {
       console.log('   ⚠️ 跳过 (API配额耗尽)');
       return;
     }
-    const rid = global.testRid || TEST_RID;
-    const flows = await skills.powerFlow.getBranchFlows(rid);
+    if (!global.pfResult || !global.pfResult.jobId) {
+      console.log('   ⚠️ 跳过 (无潮流计算结果)');
+      return;
+    }
+    const flows = await skills.powerFlow.getBranchFlows(global.pfResult.jobId);
 
     if (!flows || Object.keys(flows).length === 0) {
       throw new Error('未获取到支路功率数据');
