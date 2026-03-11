@@ -230,7 +230,7 @@ async function main() {
       console.log(`   负荷: ${stats.loads}`);
       console.log(`   线路: ${stats.lines}`);
       console.log(`   变压器: ${stats.transformers}`);
-      console.log(`   总容量: ${stats.totalCapacity.toFixed(2)} MW`);
+      console.log(`   总容量: ${Number(stats.totalCapacity || 0).toFixed(2)} MW`);
     }
   });
 

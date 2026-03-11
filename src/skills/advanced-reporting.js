@@ -338,7 +338,7 @@ class AdvancedReportingSkill {
 
     // 运行潮流获取发电出力
     const pfResult = await this.client.runSimulation(rid, 0, 0);
-    await this.client.waitForCompletion(pfResult.jobId);
+    await this.client.waitForCompletion(pfResult.job_id);
 
     // 计算各机组发电量和碳排放
     const generatorEmissions = [];
@@ -349,7 +349,8 @@ class AdvancedReportingSkill {
       const def = (comp.definition || '').toLowerCase();
       if (def.includes('gen')) {
         const args = comp.args || {};
-        const P = args.P || 0;  // MW
+        const PValue = args.P;
+        const P = typeof PValue === 'object' ? parseFloat(PValue?.source || 0) : (parseFloat(PValue) || 0);  // MW
 
         // 判断机组类型
         const genType = this._determineGeneratorType(comp, args);
@@ -424,8 +425,8 @@ class AdvancedReportingSkill {
     // 潮流分析
     if (criteria.includes('powerFlow')) {
       const pfResult = await this.client.runSimulation(rid, 0, 0);
-      await this.client.waitForCompletion(pfResult.jobId);
-      const pfData = await this.client.getPowerFlowResults(pfResult.jobId);
+      await this.client.waitForCompletion(pfResult.job_id);
+      const pfData = await this.client.getPowerFlowResults(pfResult.job_id);
 
       analysis.powerFlow = {
         converged: true,
