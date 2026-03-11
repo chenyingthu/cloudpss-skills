@@ -343,56 +343,137 @@ class PowerFlowAnalysisSkill {
   /**
    * 生成潮流分析报告
    *
-   * @param {string} jobId - 任务 ID
+   * @param {string} ridOrJobId - 项目 rid 或任务 ID
+   * @param {Object} options - 报告选项
    * @returns {Promise<Object>} 分析报告
    */
-  async generateReport(jobId) {
+  async generateReport(ridOrJobId, options = {}) {
+    const {
+      includeVoltages = true,
+      includeBranchFlows = true,
+      includeViolations = true,
+      format = 'markdown'
+    } = options;
+
+    // 判断是rid还是jobId (rid格式为 model/xxx/yyy)
+    let jobId;
+    let rid;
+    if (ridOrJobId.includes('/')) {
+      // 是rid，需要先运行潮流计算
+      rid = ridOrJobId;
+      const job = await this.runPowerFlow(rid, 0, 0);
+      jobId = job.jobId;
+    } else {
+      // 是jobId
+      jobId = ridOrJobId;
+    }
+
     const [buses, branches, generators, loads, violations] = await Promise.all([
-      this.getBusVoltages(jobId),
-      this.getBranchFlows(jobId),
+      includeVoltages ? this.getBusVoltages(jobId) : null,
+      includeBranchFlows ? this.getBranchFlows(jobId) : null,
       this.getGeneratorOutputs(jobId),
       this.getLoadResults(jobId),
-      this.checkViolations(jobId)
+      includeViolations ? this.checkViolations(jobId) : null
     ]);
 
     // 计算系统指标
     const powerBalance = {
       generation: generators.summary.totalP,
       load: loads.summary.totalP,
-      loss: branches.summary.totalPLoss,
-      balance: generators.summary.totalP - loads.summary.totalP - branches.summary.totalPLoss
+      loss: branches ? branches.summary.totalPLoss : 0,
+      balance: generators.summary.totalP - loads.summary.totalP - (branches ? branches.summary.totalPLoss : 0)
     };
 
-    return {
-      jobId,
+    const report = {
+      format,
       timestamp: new Date().toISOString(),
+      rid: rid || `job:${jobId}`,
+      sections: ['基本信息', '节点电压', '支路功率', '越限检查'].filter(s => {
+        if (s === '节点电压' && !includeVoltages) return false;
+        if (s === '支路功率' && !includeBranchFlows) return false;
+        if (s === '越限检查' && !includeViolations) return false;
+        return true;
+      }),
       system: {
-        busCount: buses.count,
-        branchCount: branches.count,
+        busCount: buses ? buses.count : 0,
+        branchCount: branches ? branches.count : 0,
         generatorCount: generators.count,
         loadCount: loads.count
       },
-      voltage: {
+      voltage: buses ? {
         max: buses.summary.maxVoltage,
         min: buses.summary.minVoltage,
         avg: buses.summary.avgVoltage
-      },
+      } : null,
       power: {
         generation: generators.summary,
         load: loads.summary,
-        loss: {
+        loss: branches ? {
           pLoss: branches.summary.totalPLoss,
           qLoss: branches.summary.totalQLoss
-        },
+        } : null,
         balance: powerBalance
       },
-      violations: {
+      violations: violations ? {
         hasViolations: violations.hasViolations,
         voltageCount: violations.voltageViolations.count,
         lineOverloadCount: violations.lineOverloads.count
-      },
-      recommendations: this._generateRecommendations(violations, buses, branches)
+      } : null,
+      recommendations: violations ? this._generateRecommendations(violations, buses, branches) : []
     };
+
+    // 生成markdown内容
+    if (format === 'markdown') {
+      report.content = this._generateMarkdownReport(report, buses, branches, violations);
+    }
+
+    return report;
+  }
+
+  /**
+   * 生成Markdown格式报告
+   */
+  _generateMarkdownReport(report, buses, branches, violations) {
+    const lines = [];
+
+    lines.push('# 潮流分析报告');
+    lines.push(`\n**生成时间**: ${report.timestamp}`);
+    lines.push(`**算例**: ${report.rid}`);
+
+    lines.push('\n## 基本信息');
+    lines.push(`- 节点数: ${report.system.busCount}`);
+    lines.push(`- 支路数: ${report.system.branchCount}`);
+    lines.push(`- 发电机数: ${report.system.generatorCount}`);
+    lines.push(`- 负荷数: ${report.system.loadCount}`);
+
+    if (buses) {
+      lines.push('\n## 节点电压');
+      lines.push(`- 最高电压: ${report.voltage.max.toFixed(4)} p.u.`);
+      lines.push(`- 最低电压: ${report.voltage.min.toFixed(4)} p.u.`);
+      lines.push(`- 平均电压: ${report.voltage.avg.toFixed(4)} p.u.`);
+    }
+
+    if (branches) {
+      lines.push('\n## 支路功率');
+      lines.push(`- 有功损耗: ${report.power.loss.pLoss.toFixed(2)} MW`);
+      lines.push(`- 无功损耗: ${report.power.loss.qLoss.toFixed(2)} MVar`);
+    }
+
+    if (violations) {
+      lines.push('\n## 越限检查');
+      lines.push(`- 电压越限: ${report.violations.voltageCount} 处`);
+      lines.push(`- 线路过载: ${report.violations.lineOverloadCount} 处`);
+    }
+
+    if (report.recommendations.length > 0) {
+      lines.push('\n## 建议');
+      report.recommendations.forEach((rec, i) => {
+        lines.push(`${i + 1}. **${rec.priority}优先级**: ${rec.issue}`);
+        lines.push(`   - 建议: ${rec.suggestion}`);
+      });
+    }
+
+    return lines.join('\n');
   }
 
   /**
