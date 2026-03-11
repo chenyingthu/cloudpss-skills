@@ -227,6 +227,200 @@ class BatchSimulationEnhancedSkill {
   }
 
   /**
+   * 年度方式批量计算 (US-029)
+   *
+   * 计算一年中不同运行方式的系统状态，包括：
+   * - 典型日方式（丰大、丰小、枯大、枯小）
+   * - 季节性方式（春、夏、秋、冬）
+   * - 特殊方式（节假日、极端负荷等）
+   *
+   * @param {string} rid - 项目 rid
+   * @param {Object} config - 年度方式配置
+   * @returns {Promise<Object>} 年度方式计算结果
+   */
+  async runAnnualModes(rid, config = {}) {
+    const {
+      year = 2024,
+      modes = 'typical',      // 'typical' | 'seasonal' | 'all' | 'custom'
+      customModes = [],       // 自定义方式列表
+      includeHolidays = true, // 是否包含节假日方式
+      analyzeResults = true
+    } = config;
+
+    console.log(`\n[AnnualModes] 年度方式批量计算`);
+    console.log(`[AnnualModes] 年份: ${year}`);
+    console.log(`[AnnualModes] 方式类型: ${modes}`);
+
+    const startTime = Date.now();
+
+    // 定义典型方式
+    const typicalModes = [
+      { name: '丰大方式', season: 'summer', loadLevel: 1.0, description: '夏季高峰负荷' },
+      { name: '丰小方式', season: 'summer', loadLevel: 0.6, description: '夏季低谷负荷' },
+      { name: '枯大方式', season: 'winter', loadLevel: 1.0, description: '冬季高峰负荷' },
+      { name: '枯小方式', season: 'winter', loadLevel: 0.6, description: '冬季低谷负荷' }
+    ];
+
+    // 定义季节方式
+    const seasonalModes = [
+      { name: '春季方式', season: 'spring', loadLevel: 0.8, description: '春季典型负荷' },
+      { name: '夏季方式', season: 'summer', loadLevel: 0.95, description: '夏季典型负荷' },
+      { name: '秋季方式', season: 'autumn', loadLevel: 0.75, description: '秋季典型负荷' },
+      { name: '冬季方式', season: 'winter', loadLevel: 0.9, description: '冬季典型负荷' }
+    ];
+
+    // 定义节假日方式
+    const holidayModes = [
+      { name: '春节方式', season: 'winter', loadLevel: 0.5, description: '春节低谷负荷' },
+      { name: '国庆方式', season: 'autumn', loadLevel: 0.65, description: '国庆长假负荷' }
+    ];
+
+    // 根据配置选择方式
+    let selectedModes = [];
+
+    if (modes === 'typical') {
+      selectedModes = [...typicalModes];
+    } else if (modes === 'seasonal') {
+      selectedModes = [...seasonalModes];
+    } else if (modes === 'all') {
+      selectedModes = [...typicalModes, ...seasonalModes];
+    } else if (modes === 'custom' && customModes.length > 0) {
+      selectedModes = customModes;
+    }
+
+    if (includeHolidays && modes !== 'custom') {
+      selectedModes.push(...holidayModes);
+    }
+
+    console.log(`[AnnualModes] 计算 ${selectedModes.length} 种运行方式`);
+
+    // 执行批量计算
+    const scenarios = selectedModes.map(mode => ({
+      name: mode.name,
+      season: mode.season,
+      loadLevel: mode.loadLevel,
+      description: mode.description
+    }));
+
+    const batchResult = await this.runPowerFlowBatch(rid, scenarios, { analyzeResults });
+
+    // 年度方式特定分析
+    const annualAnalysis = this._analyzeAnnualModes(batchResult.results, selectedModes);
+
+    const totalExecutionTime = Date.now() - startTime;
+
+    console.log(`\n[AnnualModes] 年度方式计算完成`);
+    console.log(`[AnnualModes] 总耗时: ${(totalExecutionTime / 1000).toFixed(2)}s`);
+
+    return {
+      success: true,
+      year,
+      modeType: modes,
+      modesAnalyzed: selectedModes.length,
+      totalExecutionTime,
+      results: batchResult.results,
+      summary: {
+        totalModes: selectedModes.length,
+        successCount: batchResult.aggregated.successCount,
+        failedCount: batchResult.aggregated.failedCount,
+        voltageRange: annualAnalysis.voltageRange,
+        lossRange: annualAnalysis.lossRange,
+        criticalModes: annualAnalysis.criticalModes
+      },
+      annualAnalysis,
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  /**
+   * 分析年度方式结果
+   */
+  _analyzeAnnualModes(results, modes) {
+    const successful = results.filter(r => r.status === 'success');
+
+    // 电压范围
+    const voltages = successful
+      .filter(r => r.summary?.voltage)
+      .map(r => r.summary.voltage);
+
+    const voltageRange = voltages.length > 0 ? {
+      min: Math.min(...voltages.map(v => v.min)),
+      max: Math.max(...voltages.map(v => v.max)),
+      byMode: voltages.map((v, i) => ({
+        mode: modes[i]?.name || `Mode_${i}`,
+        min: v.min,
+        max: v.max,
+        avg: v.avg
+      }))
+    } : null;
+
+    // 网损范围
+    const losses = successful
+      .filter(r => r.summary?.power)
+      .map(r => r.summary.power.totalPLoss);
+
+    const lossRange = losses.length > 0 ? {
+      min: Math.min(...losses),
+      max: Math.max(...losses),
+      byMode: losses.map((l, i) => ({
+        mode: modes[i]?.name || `Mode_${i}`,
+        loss: l
+      }))
+    } : null;
+
+    // 关键方式识别
+    const criticalModes = successful
+      .filter(r => r.violations?.hasViolations)
+      .map(r => ({
+        name: r.name,
+        voltageViolations: r.summary?.violations?.voltageCount || 0,
+        overloads: r.summary?.violations?.overloadCount || 0,
+        minVoltage: r.summary?.voltage?.min || null,
+        maxLoss: r.summary?.power?.totalPLoss || null
+      }));
+
+    return {
+      voltageRange,
+      lossRange,
+      criticalModes,
+      recommendations: this._generateAnnualRecommendations(criticalModes, voltageRange, lossRange)
+    };
+  }
+
+  /**
+   * 生成年度方式建议
+   */
+  _generateAnnualRecommendations(criticalModes, voltageRange, lossRange) {
+    const recommendations = [];
+
+    if (criticalModes.length > 0) {
+      recommendations.push({
+        type: 'operation',
+        priority: 'high',
+        message: `${criticalModes.length} 种方式存在越限，建议重点关注`
+      });
+    }
+
+    if (voltageRange && voltageRange.min < 0.95) {
+      recommendations.push({
+        type: 'voltage',
+        priority: 'medium',
+        message: '部分方式电压偏低，建议加强无功补偿配置'
+      });
+    }
+
+    if (lossRange && lossRange.max > lossRange.min * 1.5) {
+      recommendations.push({
+        type: 'loss',
+        priority: 'low',
+        message: '各方式网损差异较大，建议优化运行方式'
+      });
+    }
+
+    return recommendations;
+  }
+
+  /**
    * 汇总分析结果
    */
   _aggregateResults(results) {
