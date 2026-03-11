@@ -80,30 +80,16 @@ async function main() {
       global.jobId = result.jobId;
       global.testRid = testRid;
     } catch (error) {
-      // 检查是否为配额限制错误或Python错误
-      const errorMsg = error.message || '';
-      if (errorMsg.includes('配额') || errorMsg.includes('Python process exited')) {
-        console.log(`   ⚠️ API限制或配额耗尽，跳过仿真测试`);
-        console.log(`   提示: 每小时仅允许60次仿真，请稍后重试`);
-        global.quotaExhausted = true;
-        // 不抛出错误，让测试通过但标记为跳过
-        return;
-      }
       throw error;
     }
   });
 
   await runTest('US-011: 获取节点电压结果', async () => {
-    if (global.quotaExhausted) {
-      console.log('   ⚠️ 跳过 (API配额耗尽)');
-      return;
-    }
     if (!global.jobId) {
-      console.log('   ⚠️ 跳过 (未执行潮流计算)');
-      return;
+      throw new Error('未执行潮流计算');
     }
 
-    const voltages = await skills.powerFlow.getBusVoltages(jobId);
+    const voltages = await skills.powerFlow.getBusVoltages(global.jobId);
 
     if (!voltages || !voltages.buses || voltages.buses.length === 0) {
       throw new Error('未获取到节点电压数据');
@@ -132,9 +118,8 @@ async function main() {
   });
 
   await runTest('US-011: 获取支路功率结果', async () => {
-    if (global.quotaExhausted || !global.jobId) {
-      console.log('   ⚠️ 跳过 (API配额耗尽或未执行潮流计算)');
-      return;
+    if (!global.jobId) {
+      throw new Error('未执行潮流计算');
     }
     const jobId = global.jobId;
 
@@ -164,9 +149,8 @@ async function main() {
   });
 
   await runTest('US-011: 检查越限情况', async () => {
-    if (global.quotaExhausted || !global.jobId) {
-      console.log('   ⚠️ 跳过 (API配额耗尽或未执行潮流计算)');
-      return;
+    if (!global.jobId) {
+      throw new Error('未执行潮流计算');
     }
     const jobId = global.jobId;
 
@@ -229,10 +213,6 @@ async function main() {
   });
 
   await runTest('US-012: 批量运行潮流计算', async () => {
-    if (global.quotaExhausted) {
-      console.log('   ⚠️ 跳过 (API配额耗尽)');
-      return;
-    }
     const rid = global.testRid || TEST_RID;
 
     try {
@@ -266,9 +246,8 @@ async function main() {
   });
 
   await runTest('US-012: 生成对比报告', async () => {
-    if (global.quotaExhausted || !global.batchResult) {
-      console.log('   ⚠️ 跳过 (无批量计算结果)');
-      return;
+    if (!global.batchResult) {
+      throw new Error('无批量计算结果');
     }
 
     // 简单的对比分析
@@ -324,42 +303,23 @@ async function main() {
   await runTest('US-013: 执行参数扫描', async () => {
     const rid = global.testRid || TEST_RID;
 
-    // 使用批量增强的参数扫描功能
-    try {
-      const sweepResult = await skills.batchEnhanced.parameterSweep(rid, {
-        parameter: global.sweepConfig.parameter,
-        start: global.sweepConfig.start,
-        end: global.sweepConfig.end,
-        step: global.sweepConfig.step
-      });
-
-      if (!sweepResult || !sweepResult.results) {
-        console.log('   ⚠️ 参数扫描功能暂未完全实现，使用模拟数据');
-        global.sweepResult = {
-          results: [
-            { value: 0.8, converged: true, summary: { totalLoss: 40.5 } },
-            { value: 0.9, converged: true, summary: { totalLoss: 45.2 } },
-            { value: 1.0, converged: true, summary: { totalLoss: 50.1 } },
-            { value: 1.1, converged: true, summary: { totalLoss: 55.8 } },
-            { value: 1.2, converged: false, summary: null }
-          ]
-        };
-      } else {
-        global.sweepResult = sweepResult;
-      }
-    } catch (error) {
-      console.log(`   ⚠️ 参数扫描执行错误: ${error.message}`);
-      // 使用模拟数据继续测试
-      global.sweepResult = {
-        results: [
-          { value: 0.8, converged: true, summary: { totalLoss: 40.5 } },
-          { value: 0.9, converged: true, summary: { totalLoss: 45.2 } },
-          { value: 1.0, converged: true, summary: { totalLoss: 50.1 } },
-          { value: 1.1, converged: true, summary: { totalLoss: 55.8 } },
-          { value: 1.2, converged: false, summary: null }
-        ]
-      };
+    // 生成参数值数组
+    const values = [];
+    for (let v = global.sweepConfig.start; v <= global.sweepConfig.end; v += global.sweepConfig.step) {
+      values.push(v);
     }
+
+    const sweepResult = await skills.batchEnhanced.parameterSweep(
+      rid,
+      global.sweepConfig.parameter,
+      values
+    );
+
+    if (!sweepResult || !sweepResult.results) {
+      throw new Error('参数扫描未返回结果');
+    }
+
+    global.sweepResult = sweepResult;
 
     console.log(`   扫描点数: ${global.sweepResult.results.length}`);
     const converged = global.sweepResult.results.filter(r => r.converged).length;

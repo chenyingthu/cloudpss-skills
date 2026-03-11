@@ -84,12 +84,6 @@ async function main() {
       console.log(`   潮流计算完成: ${pfResult.status}`);
       global.pfResult = pfResult;
     } catch (error) {
-      const errorMsg = error.message || '';
-      if (errorMsg.includes('配额') || errorMsg.includes('Python process exited')) {
-        console.log('   ⚠️ API配额耗尽，部分测试将跳过');
-        global.quotaExhausted = true;
-        return;
-      }
       throw error;
     }
   });
@@ -98,48 +92,33 @@ async function main() {
   console.log('\n📦 US-037: 潮流分析报告生成');
 
   await runTest('US-037: 生成潮流分析报告', async () => {
-    if (global.quotaExhausted) {
-      console.log('   ⚠️ 跳过 (API配额耗尽)');
-      return;
-    }
     const rid = global.testRid || TEST_RID;
 
-    try {
-      const report = await skills.powerFlow.generateReport(rid, {
-        includeVoltages: true,
-        includeBranchFlows: true,
-        includeViolations: true,
-        format: 'markdown'
-      });
+    const report = await skills.powerFlow.generateReport(rid, {
+      includeVoltages: true,
+      includeBranchFlows: true,
+      includeViolations: true,
+      format: 'markdown'
+    });
 
-      if (!report) {
-        throw new Error('报告生成失败');
-      }
-
-      console.log(`   报告格式: ${report.format || 'markdown'}`);
-      console.log(`   报告内容长度: ${report.content?.length || 0} 字符`);
-
-      if (report.sections) {
-        console.log(`   报告章节:`);
-        report.sections.forEach(s => console.log(`   - ${s}`));
-      }
-
-      global.pfReport = report;
-    } catch (error) {
-      console.log(`   ⚠️ 报告生成问题: ${error.message}`);
-      // 如果报告功能未完全实现，创建模拟报告继续测试
-      global.pfReport = {
-        format: 'markdown',
-        content: `# 潮流分析报告\n\n## 基本信息\n算例: ${rid}\n\n## 节点电压\n...`,
-        sections: ['基本信息', '节点电压', '支路功率', '越限分析']
-      };
+    if (!report) {
+      throw new Error('报告生成失败');
     }
+
+    console.log(`   报告格式: ${report.format || 'markdown'}`);
+    console.log(`   报告内容长度: ${report.content?.length || 0} 字符`);
+
+    if (report.sections) {
+      console.log(`   报告章节:`);
+      report.sections.forEach(s => console.log(`   - ${s}`));
+    }
+
+    global.pfReport = report;
   });
 
   await runTest('US-037: 验证报告内容完整性', async () => {
-    if (global.quotaExhausted || !global.pfReport) {
-      console.log('   ⚠️ 跳过 (API配额耗尽或无报告数据)');
-      return;
+    if (!global.pfReport) {
+      throw new Error('无报告数据');
     }
 
     const requiredSections = ['基本信息', '节点电压', '支路功率'];
@@ -169,10 +148,6 @@ async function main() {
   console.log('\n📦 US-038: N-1扫描报告');
 
   await runTest('US-038: 执行N-1扫描', async () => {
-    if (global.quotaExhausted) {
-      console.log('   ⚠️ 跳过 (API配额耗尽)');
-      return;
-    }
     const rid = global.testRid || TEST_RID;
 
     try {
@@ -185,47 +160,31 @@ async function main() {
       console.log(`   N-1扫描状态: ${scanResult?.status || 'completed'}`);
       global.n1ScanResult = scanResult;
     } catch (error) {
-      console.log(`   ⚠️ N-1扫描问题: ${error.message}`);
-      global.n1ScanResult = { status: 'partial' };
+      throw new Error(`N-1扫描失败: ${error.message}`);
     }
   });
 
   await runTest('US-038: 生成N-1扫描报告', async () => {
-    if (global.quotaExhausted) {
-      console.log('   ⚠️ 跳过 (API配额耗尽)');
-      return;
-    }
     const rid = global.testRid || TEST_RID;
 
-    try {
-      const report = await skills.n1Analysis.generateReport(rid, global.n1ScanResult, {
-        format: 'markdown',
-        includeDetails: true
-      });
+    const report = await skills.n1Analysis.generateReport(rid, global.n1ScanResult, {
+      format: 'markdown',
+      includeDetails: true
+    });
 
-      if (!report) {
-        throw new Error('N-1报告生成失败');
-      }
-
-      console.log(`   报告格式: ${report.format || 'markdown'}`);
-      console.log(`   报告内容长度: ${report.content?.length || 0} 字符`);
-
-      global.n1Report = report;
-    } catch (error) {
-      console.log(`   ⚠️ N-1报告生成问题: ${error.message}`);
-      // 创建模拟报告
-      global.n1Report = {
-        format: 'markdown',
-        content: `# N-1扫描报告\n\n## 扫描范围\n- 线路: 34条\n- 变压器: 0台\n- 发电机: 0台\n\n## 扫描结果\n- 严重故障: 2个\n- 一般故障: 5个\n\n## 薄弱环节\n...`,
-        sections: ['扫描范围', '扫描结果', '严重故障详情', '薄弱环节分析', '改进建议']
-      };
+    if (!report) {
+      throw new Error('N-1报告生成失败');
     }
+
+    console.log(`   报告格式: ${report.format || 'markdown'}`);
+    console.log(`   报告内容长度: ${report.content?.length || 0} 字符`);
+
+    global.n1Report = report;
   });
 
   await runTest('US-038: 验证N-1报告结构', async () => {
-    if (global.quotaExhausted || !global.n1Report) {
-      console.log('   ⚠️ 跳过 (API配额耗尽或无N-1报告数据)');
-      return;
+    if (!global.n1Report) {
+      throw new Error('无N-1报告数据');
     }
 
     const expectedSections = ['扫描范围', '扫描结果', '薄弱环节'];
@@ -248,10 +207,6 @@ async function main() {
 
   // 先运行批量潮流计算获取可导出的结果
   await runTest('US-039: 准备批量计算结果', async () => {
-    if (global.quotaExhausted) {
-      console.log('   ⚠️ 跳过 (API配额耗尽)');
-      return;
-    }
     const rid = global.testRid || TEST_RID;
 
     const scenarios = [
@@ -269,10 +224,8 @@ async function main() {
   });
 
   await runTest('US-039: 导出为Excel格式', async () => {
-    if (global.quotaExhausted || !global.batchResult) {
-      console.log('   ⚠️ 跳过 (API配额耗尽或无批量计算结果)');
-      global.xlsxExport = { success: false, note: '无数据' };
-      return;
+    if (!global.batchResult) {
+      throw new Error('无批量计算结果');
     }
 
     try {
@@ -293,10 +246,8 @@ async function main() {
   });
 
   await runTest('US-039: 导出为CSV格式', async () => {
-    if (global.quotaExhausted || !global.batchResult) {
-      console.log('   ⚠️ 跳过 (API配额耗尽或无批量计算结果)');
-      global.csvExport = { success: false, note: '无数据' };
-      return;
+    if (!global.batchResult) {
+      throw new Error('无批量计算结果');
     }
 
     try {
@@ -316,10 +267,8 @@ async function main() {
   });
 
   await runTest('US-039: 导出为JSON格式', async () => {
-    if (global.quotaExhausted || !global.batchResult) {
-      console.log('   ⚠️ 跳过 (API配额耗尽或无批量计算结果)');
-      global.jsonExport = { success: false, note: '无数据' };
-      return;
+    if (!global.batchResult) {
+      throw new Error('无批量计算结果');
     }
 
     try {
@@ -339,10 +288,6 @@ async function main() {
   });
 
   await runTest('US-039: 验证导出文件可用性', async () => {
-    if (global.quotaExhausted) {
-      console.log('   ⚠️ 跳过 (API配额耗尽)');
-      return;
-    }
     const exportedFiles = [];
 
     if (global.xlsxExport?.filePath && fs.existsSync(global.xlsxExport.filePath)) {
