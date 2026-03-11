@@ -41,6 +41,18 @@ const StabilityAnalysisSkill = require('./skills/stability-analysis');
 // Skills - New (US-044, US-046, US-047, US-048)
 const OperationSupportSkill = require('./skills/operation-support');
 
+// Skills - New (US-007, US-009)
+const { ModelCreationSkill } = require('./skills/model-creation');
+
+// Skills - New (US-027)
+const { ShortCircuitSkill } = require('./skills/short-circuit');
+
+// Skills - New (US-031, US-033, US-034)
+const { OptimizationSkill } = require('./skills/optimization');
+
+// Skills - New (US-036, US-040, US-041, US-056)
+const { AdvancedReportingSkill } = require('./skills/advanced-reporting');
+
 /**
  * CloudPSS Skills 主类
  */
@@ -75,6 +87,12 @@ class CloudPSSSkills {
     this.visualization = new VisualizationSkill(this.client);
     this.stabilityAnalysis = new StabilityAnalysisSkill(this.client);
     this.operationSupport = new OperationSupportSkill(this.client);
+
+    // 初始化技能 - New (Round 2)
+    this.modelCreation = new ModelCreationSkill(this.client);
+    this.shortCircuit = new ShortCircuitSkill(this.client);
+    this.optimization = new OptimizationSkill(this.client);
+    this.advancedReporting = new AdvancedReportingSkill(this.client);
   }
 
   /**
@@ -126,5 +144,10 @@ module.exports = {
   AdvancedAnalysisSkill,
   VisualizationSkill,
   StabilityAnalysisSkill,
-  OperationSupportSkill
+  OperationSupportSkill,
+  // New Skills (Round 2)
+  ModelCreationSkill,
+  ShortCircuitSkill,
+  OptimizationSkill,
+  AdvancedReportingSkill
 };
