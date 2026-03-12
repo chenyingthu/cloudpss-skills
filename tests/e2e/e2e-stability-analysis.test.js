@@ -122,6 +122,35 @@ async function main() {
       console.log(`   评估信息: ${result.assessment.message}`);
     }
 
+    // ========== 数值合理性验证 ==========
+    // 1. 验证margin为有效数值
+    if (typeof result.margin !== 'number' || isNaN(result.margin)) {
+      throw new Error(`稳定裕度计算异常: ${result.margin}`);
+    }
+
+    // 2. 验证margin在合理范围内 (0-100%)
+    if (result.margin < 0 || result.margin > 100) {
+      throw new Error(`稳定裕度超出合理范围: ${result.margin}%`);
+    }
+
+    // 3. 验证电压值合理
+    for (const r of result.loadGrowthResults) {
+      if (r.converged && r.minVoltage !== undefined) {
+        if (r.minVoltage < 0.5 || r.minVoltage > 1.5) {
+          throw new Error(`电压值异常: ${r.minVoltage} p.u. at ${r.percent}%`);
+        }
+      }
+    }
+
+    // 4. 验证临界点信息（如果存在）
+    if (result.criticalPoint) {
+      if (typeof result.criticalPoint.percent !== 'number' || isNaN(result.criticalPoint.percent)) {
+        throw new Error(`临界点百分比异常: ${result.criticalPoint.percent}`);
+      }
+    }
+
+    console.log(`   ✅ 数值验证通过`);
+
     global.stabilityResult = result;
   });
 

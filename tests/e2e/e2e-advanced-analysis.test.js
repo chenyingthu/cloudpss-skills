@@ -204,6 +204,41 @@ async function main() {
       console.log(`     - 电压范围: ${result.analysis.voltageRange?.min?.toFixed(4) || 'N/A'} ~ ${result.analysis.voltageRange?.max?.toFixed(4) || 'N/A'} p.u.`);
     }
 
+    // ========== 数值合理性验证 ==========
+    // 1. 验证结果点数
+    if (!result.results || result.results.length !== global.timeSeriesConfig.points) {
+      throw new Error(`结果点数不匹配: 期望${global.timeSeriesConfig.points}，实际${result.results?.length || 0}`);
+    }
+
+    // 2. 验证收敛率
+    if (result.analysis) {
+      const convergenceRate = result.analysis.converged / result.analysis.totalPoints;
+      if (convergenceRate < 0.5) {
+        console.log(`   ⚠️ 收敛率过低: ${(convergenceRate * 100).toFixed(1)}%`);
+      }
+    }
+
+    // 3. 验证电压范围
+    if (result.analysis?.voltageRange) {
+      const vMin = result.analysis.voltageRange.min;
+      const vMax = result.analysis.voltageRange.max;
+      if (vMin < 0.7 || vMax > 1.3) {
+        throw new Error(`电压范围异常: ${vMin.toFixed(4)} ~ ${vMax.toFixed(4)} p.u.`);
+      }
+      console.log(`   ✓ 电压范围合理: ${vMin.toFixed(4)} ~ ${vMax.toFixed(4)} p.u.`);
+    }
+
+    // 4. 验证每个时点的数值
+    for (const r of result.results) {
+      if (r.converged && r.minVoltage !== undefined) {
+        if (isNaN(r.minVoltage) || r.minVoltage < 0.5 || r.minVoltage > 1.5) {
+          throw new Error(`时点${r.time}电压异常: ${r.minVoltage}`);
+        }
+      }
+    }
+
+    console.log(`   ✅ 数值验证通过`);
+
     global.timeSeriesResult = result;
   });
 

@@ -195,13 +195,22 @@ class BatchSimulationEnhancedSkill {
       loadLevels.push(p);
     }
 
-    // 构建场景
+    // 构建场景 - 使用 percent 字段以便测试正确读取
     const scenarios = loadLevels.map(level => ({
       name: `Load_${level}%`,
+      percent: level,  // 添加 percent 字段供测试使用
       loadLevel: level
     }));
 
-    return this.runPowerFlowBatch(rid, scenarios, batchOptions);
+    const result = await this.runPowerFlowBatch(rid, scenarios, batchOptions);
+
+    // 确保每个结果都有 percent 字段
+    result.results = result.results.map((r, i) => ({
+      ...r,
+      percent: loadLevels[i]
+    }));
+
+    return result;
   }
 
   /**
