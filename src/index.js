@@ -53,6 +53,14 @@ const { OptimizationSkill } = require('./skills/optimization');
 // Skills - New (US-036, US-040, US-041, US-056)
 const { AdvancedReportingSkill } = require('./skills/advanced-reporting');
 
+// Skills - New (Hybrid API Mode)
+const HybridAPIManager = require('./api/hybrid-manager');
+const ModelValidationSkill = require('./skills/model-validation');
+const LocalModelManagerSkill = require('./skills/local-model-manager');
+
+// Utils
+const { LocalLoader, localLoader } = require('./utils/local-loader');
+
 /**
  * CloudPSS Skills 主类
  */
@@ -60,6 +68,9 @@ class CloudPSSSkills {
   constructor(options = {}) {
     this.client = new CloudPSSClient(options);
     this.options = options;
+
+    // 初始化 HybridAPIManager（混合模式）
+    this.hybridManager = new HybridAPIManager(this.client, options);
 
     // 初始化技能 - Original
     this.create = new CreateSkill(this.client);
@@ -93,6 +104,10 @@ class CloudPSSSkills {
     this.shortCircuit = new ShortCircuitSkill(this.client);
     this.optimization = new OptimizationSkill(this.client);
     this.advancedReporting = new AdvancedReportingSkill(this.client);
+
+    // 初始化技能 - Hybrid API Mode
+    this.modelValidation = new ModelValidationSkill(this.client, options);
+    this.localModelManager = new LocalModelManagerSkill(this.client, options);
   }
 
   /**
@@ -100,6 +115,46 @@ class CloudPSSSkills {
    */
   getClient() {
     return this.client;
+  }
+
+  /**
+   * 获取/设置 API 模式
+   *
+   * @param {string} [mode] - 模式 ('local' | 'api' | 'auto')，不传则返回当前模式
+   * @returns {string|void} 当前模式（当不传参数时）
+   */
+  mode(mode) {
+    if (mode === undefined) {
+      return this.hybridManager.getMode();
+    }
+    this.hybridManager.setMode(mode);
+  }
+
+  /**
+   * 设置 API 模式
+   *
+   * @param {string} mode - 模式 ('local' | 'api' | 'auto')
+   */
+  setMode(mode) {
+    this.hybridManager.setMode(mode);
+  }
+
+  /**
+   * 获取当前 API 模式
+   *
+   * @returns {string} 当前模式
+   */
+  getMode() {
+    return this.hybridManager.getMode();
+  }
+
+  /**
+   * 获取混合模式状态
+   *
+   * @returns {Object} 状态信息
+   */
+  getHybridStatus() {
+    return this.hybridManager.getStatus();
   }
 
   /**
@@ -121,6 +176,12 @@ class CloudPSSSkills {
 module.exports = {
   CloudPSSSkills,
   CloudPSSClient,
+  // Hybrid API Mode
+  HybridAPIManager,
+  ModelValidationSkill,
+  LocalModelManagerSkill,
+  LocalLoader,
+  localLoader,
   // Original Skills
   CreateSkill,
   ManageSkill,
