@@ -742,7 +742,8 @@ def get_components_by_type(rid: str, component_type: str) -> List[Dict[str, Any]
 # =====================================================
 
 def run_contingency_scan(rid: str, job_type: str = 'powerFlow',
-                         elements: List[str] = None) -> List[Dict]:
+                         elements: List[str] = None,
+                         max_scans: int = 10) -> List[Dict]:
     """
     运行 N-1 扫描分析
 
@@ -752,6 +753,7 @@ def run_contingency_scan(rid: str, job_type: str = 'powerFlow',
         rid: 项目 rid，格式为 'model/owner/key'
         job_type: 计算方案类型 ('powerFlow', 'emtp', etc.)
         elements: 要扫描的元件 ID 列表，None 表示扫描所有线路和变压器
+        max_scans: 最大扫描数量，默认10个（避免耗时过长）
 
     Returns:
         扫描结果列表，每个元素包含：
@@ -768,26 +770,31 @@ def run_contingency_scan(rid: str, job_type: str = 'powerFlow',
 
     model = cloudpss.Model.fetch(rid)
 
-    # 获取拓扑结构，识别所有线路和变压器
-    topology = model.fetchTopology(implementType='powerFlow', config={}, maximumDepth=None)
+    # 使用 getAllComponents 获取所有组件（新API）
+    components = model.getAllComponents()
 
     # 确定要扫描的元件
     if elements is None:
         # 自动识别所有线路和变压器
         elements_to_scan = []
-        for key, comp in topology.components.items():
-            comp_type = getattr(comp, 'type', '') or getattr(comp, 'definition', '')
+        for key, comp in components.items():
+            # 组件可能是对象或字典，兼容两种访问方式
+            if isinstance(comp, dict):
+                comp_def = comp.get('definition', '')
+            else:
+                comp_def = getattr(comp, 'definition', '')
+            comp_def_lower = str(comp_def).lower()
             # 线路和变压器通常包含 'line', 'branch', 'transformer', 'xfmr' 等关键字
-            comp_type_lower = str(comp_type).lower()
-            if any(kw in comp_type_lower for kw in ['line', 'branch', 'transformer', 'xfmr']):
+            if any(kw in comp_def_lower for kw in ['line', 'branch', 'transformer', 'xfmr']):
                 elements_to_scan.append(key)
     else:
         elements_to_scan = elements
 
-    results = []
+    # 限制扫描数量
+    if len(elements_to_scan) > max_scans:
+        elements_to_scan = elements_to_scan[:max_scans]
 
-    # 保存原始拓扑状态
-    original_topology = topology.components.copy()
+    results = []
 
     for element_id in elements_to_scan:
         scan_result = {
@@ -802,48 +809,43 @@ def run_contingency_scan(rid: str, job_type: str = 'powerFlow',
             'error': None
         }
 
+        # 保存原始组件信息用于恢复
+        original_comp = components.get(element_id)
+        if not original_comp:
+            scan_result['status'] = 'failed'
+            scan_result['error'] = f'Element {element_id} not found'
+            results.append(scan_result)
+            continue
+
         try:
             # 获取元件信息
-            component = topology.components.get(element_id)
-            if not component:
-                scan_result['status'] = 'failed'
-                scan_result['error'] = f'Element {element_id} not found'
-                results.append(scan_result)
-                continue
+            comp_def = original_comp.get('definition', '') if isinstance(original_comp, dict) else getattr(original_comp, 'definition', '')
+            comp_label = original_comp.get('label', element_id) if isinstance(original_comp, dict) else getattr(original_comp, 'label', element_id)
+            comp_args = original_comp.get('args', {}) if isinstance(original_comp, dict) else getattr(original_comp, 'args', {})
+            comp_pins = original_comp.get('pins', {}) if isinstance(original_comp, dict) else getattr(original_comp, 'pins', {})
 
             # 识别元件类型
-            comp_type = getattr(component, 'type', '') or getattr(component, 'definition', '')
-            comp_type_lower = str(comp_type).lower()
-            if 'transformer' in comp_type_lower or 'xfmr' in comp_type_lower:
+            comp_def_lower = str(comp_def).lower()
+            if 'transformer' in comp_def_lower or 'xfmr' in comp_def_lower:
                 scan_result['element_type'] = 'transformer'
-            elif 'line' in comp_type_lower or 'branch' in comp_type_lower:
+            elif 'line' in comp_def_lower or 'branch' in comp_def_lower:
                 scan_result['element_type'] = 'line'
             else:
                 scan_result['element_type'] = 'other'
 
-            scan_result['element_name'] = getattr(component, 'label', element_id)
+            scan_result['element_name'] = comp_label
 
-            # 开断元件：通过设置元件状态为断开或移除元件
-            # 方法 1: 更新元件参数，设置 open=True 或 status='open'
-            updated = model.updateComponent(
-                element_id,
-                args={'open': True, 'status': 0}
-            )
-
-            if not updated:
-                # 方法 2: 如果无法更新，尝试通过修改拓扑实现
-                scan_result['status'] = 'failed'
-                scan_result['error'] = 'Failed to open element'
-                results.append(scan_result)
-                continue
-
-            # 保存修改后的模型
+            # 开断元件：使用 removeComponent 模拟N-1（新API）
+            model.removeComponent(element_id)
             model.save()
 
             # 获取第一个 job 和 config
             if not model.jobs:
                 scan_result['status'] = 'failed'
                 scan_result['error'] = 'No job defined in model'
+                # 恢复元件
+                model.addComponent(comp_def, comp_label, comp_args, comp_pins)
+                model.save()
                 results.append(scan_result)
                 continue
 
@@ -855,7 +857,7 @@ def run_contingency_scan(rid: str, job_type: str = 'powerFlow',
 
             # 等待完成
             job_id = runner.id if hasattr(runner, 'id') else runner.job_id
-            timeout = 180  # 3 分钟超时
+            timeout = 120  # 2 分钟超时
             start_time = time.time()
 
             while not runner.status():
@@ -863,7 +865,7 @@ def run_contingency_scan(rid: str, job_type: str = 'powerFlow',
                     scan_result['status'] = 'failed'
                     scan_result['error'] = 'Simulation timeout'
                     # 恢复元件
-                    model.updateComponent(element_id, args={'open': False, 'status': 1})
+                    model.addComponent(comp_def, comp_label, comp_args, comp_pins)
                     model.save()
                     results.append(scan_result)
                     break
@@ -891,7 +893,7 @@ def run_contingency_scan(rid: str, job_type: str = 'powerFlow',
                     scan_result['error'] = 'No result (convergence failure?)'
 
             # 恢复元件状态
-            model.updateComponent(element_id, args={'open': False, 'status': 1})
+            model.addComponent(comp_def, comp_label, comp_args, comp_pins)
             model.save()
 
         except Exception as e:
@@ -899,10 +901,15 @@ def run_contingency_scan(rid: str, job_type: str = 'powerFlow',
             scan_result['error'] = str(e)
             # 尝试恢复元件
             try:
-                model.updateComponent(element_id, args={'open': False, 'status': 1})
-                model.save()
-            except:
-                pass
+                if original_comp:
+                    comp_def = original_comp.get('definition', '') if isinstance(original_comp, dict) else getattr(original_comp, 'definition', '')
+                    comp_label = original_comp.get('label', element_id) if isinstance(original_comp, dict) else getattr(original_comp, 'label', element_id)
+                    comp_args = original_comp.get('args', {}) if isinstance(original_comp, dict) else getattr(original_comp, 'args', {})
+                    comp_pins = original_comp.get('pins', {}) if isinstance(original_comp, dict) else getattr(original_comp, 'pins', {})
+                    model.addComponent(comp_def, comp_label, comp_args, comp_pins)
+                    model.save()
+            except Exception as restore_error:
+                scan_result['error'] += f' | Restore failed: {str(restore_error)}'
 
         results.append(scan_result)
 
