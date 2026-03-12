@@ -47,7 +47,7 @@ check_dependencies() {
     fi
 
     NODE_VERSION=$(node -v | cut -d'v' -f1 | cut -d'.' -f1)
-    if [ "$NODE_VERSION" -lt 18 ]; then
+    if [ -n "$NODE_VERSION" ] && [ "$NODE_VERSION" -lt 18 ] 2>/dev/null; then
         log_error "Node.js 版本过低 ($NODE_VERSION)，需要 >= 18"
         exit 1
     fi
