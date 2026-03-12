@@ -72,6 +72,9 @@ class CloudPSSSkills {
     // 初始化 HybridAPIManager（混合模式）
     this.hybridManager = new HybridAPIManager(this.client, options);
 
+    // 代理 client 方法到 hybridManager（让所有技能自动支持混合模式）
+    this._setupHybridProxy();
+
     // 初始化技能 - Original
     this.create = new CreateSkill(this.client);
     this.manage = new ManageSkill(this.client);
@@ -108,6 +111,30 @@ class CloudPSSSkills {
     // 初始化技能 - Hybrid API Mode
     this.modelValidation = new ModelValidationSkill(this.client, options);
     this.localModelManager = new LocalModelManagerSkill(this.client, options);
+  }
+
+  /**
+   * 设置混合模式代理
+   *
+   * 将 client 的 getTopology 和 getAllComponents 方法代理到 hybridManager，
+   * 使所有现有技能自动支持混合模式
+   *
+   * @private
+   */
+  _setupHybridProxy() {
+    // 保存原始方法引用（供需要直接访问 API 的场景）
+    this.client._originalGetTopology = this.client.getTopology.bind(this.client);
+    this.client._originalGetAllComponents = this.client.getAllComponents.bind(this.client);
+
+    // 代理 getTopology 方法
+    this.client.getTopology = async (rid, type) => {
+      return this.hybridManager.getTopology(rid, type);
+    };
+
+    // 代理 getAllComponents 方法
+    this.client.getAllComponents = async (rid) => {
+      return this.hybridManager.getAllComponents(rid);
+    };
   }
 
   /**
