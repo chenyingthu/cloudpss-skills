@@ -220,10 +220,13 @@ class StabilityAnalysisSkill {
       autoFixAvailable: false
     };
 
-    // 1. 获取系统拓扑信息
+    // 1. 获取系统拓扑信息（使用 getTopology 获取完整的 pins 连接信息）
+    // 注意：必须使用 getTopology() 而不是 getAllComponents()
+    // 因为 getAllComponents() 返回的 pins 为空，而 getTopology() 返回解析后的连接编号
     let components;
     try {
-      components = await this.client.getAllComponents(rid);
+      const topologyData = await this.client.getTopology(rid, 'powerFlow');
+      components = topologyData.components || {};
     } catch (error) {
       diagnosis.issues.push({
         severity: 'critical',
@@ -318,29 +321,44 @@ class StabilityAnalysisSkill {
 
   /**
    * 检查孤立节点
+   *
+   * CloudPSS pins 结构: { "pinId": "nodeId", ... }
+   * 例如: 线路 pins = { "0": "bus1", "1": "bus2" }
+   * 相同 nodeId 的元件是电气连接的
    */
   _checkIsolatedNodes(components) {
     const isolated = [];
-    const connectedNodes = new Set();
+    const connectedNodeIds = new Set();
 
-    // 收集所有连接的节点
+    // 收集所有连接的电气节点ID
+    // 通过线路、变压器等连接元件的 pins 获取
     for (const [key, comp] of Object.entries(components)) {
       const def = (comp.definition || '').toLowerCase();
       if (def.includes('line') || def.includes('transformer') || def.includes('branch')) {
-        // 假设元件有端口连接信息
-        if (comp.ports) {
-          Object.values(comp.ports).forEach(port => {
-            if (port.connection) connectedNodes.add(port.connection);
-          });
+        // 使用 pins 获取连接的电气节点
+        const pins = comp.pins || {};
+        for (const [pinId, nodeId] of Object.entries(pins)) {
+          if (nodeId && nodeId !== '') {
+            connectedNodeIds.add(nodeId);
+          }
         }
       }
     }
 
     // 找出孤立节点
+    // 母线元件通过 pins 连接到电气节点
     for (const [key, comp] of Object.entries(components)) {
       const def = (comp.definition || '').toLowerCase();
       if (def.includes('bus') || def.includes('node')) {
-        if (!connectedNodes.has(key)) {
+        // 检查母线的 pins 是否连接到已知的电气节点
+        const pins = comp.pins || {};
+        const pinNodeIds = Object.values(pins).filter(id => id && id !== '');
+
+        // 如果母线有 pins，检查是否在连接节点集合中
+        // 如果没有 pins，则认为是孤立的
+        const isConnected = pinNodeIds.some(nodeId => connectedNodeIds.has(nodeId));
+
+        if (pinNodeIds.length === 0 || !isConnected) {
           isolated.push({ key, label: comp.label || key });
         }
       }
