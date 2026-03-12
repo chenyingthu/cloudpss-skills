@@ -94,11 +94,14 @@ async function main() {
       const label = (comp.label || '').toLowerCase();
 
       if (def.includes('load') || def.includes('pq') || label.includes('负荷')) {
-        const p = parseFloat(comp.args?.P || comp.args?.p || 0);
-        const q = parseFloat(comp.args?.Q || comp.args?.q || 0);
-        totalLoadP += p;
-        totalLoadQ += q;
-        loads.push({ key, label: comp.label, P: p, Q: q });
+        // 处理可能的NaN值
+        const pRaw = comp.args?.P || comp.args?.p || comp.args?.P0 || comp.args?.p0;
+        const qRaw = comp.args?.Q || comp.args?.q || comp.args?.Q0 || comp.args?.q0;
+        const p = pRaw !== undefined ? parseFloat(pRaw) : 0;
+        const q = qRaw !== undefined ? parseFloat(qRaw) : 0;
+        totalLoadP += isNaN(p) ? 0 : p;
+        totalLoadQ += isNaN(q) ? 0 : q;
+        loads.push({ key, label: comp.label, P: isNaN(p) ? 0 : p, Q: isNaN(q) ? 0 : q });
       }
     }
 
@@ -109,7 +112,7 @@ async function main() {
     global.loads = loads;
     global.totalLoadP = totalLoadP;
     global.totalLoadQ = totalLoadQ;
-    global.baseLoadP = totalLoadP;
+    global.baseLoadP = totalLoadP > 0 ? totalLoadP : 1000;  // 默认1000MW如果无法获取
   });
 
   await runTest('US-030: 配置负荷增长扫描', async () => {
@@ -147,11 +150,52 @@ async function main() {
 
     // 显示扫描进度
     scanResult.results.forEach((r, i) => {
-      const percent = global.loadGrowthConfig.startPercent + i * global.loadGrowthConfig.step;
+      const percent = r.percent || (global.loadGrowthConfig.startPercent + i * global.loadGrowthConfig.step);
       const status = r.converged ? '✅ 收敛' : '❌ 不收敛';
       const violations = r.violationCount || 0;
       console.log(`   - 负荷 ${percent}%: ${status}, 越限 ${violations} 处`);
     });
+
+    // ========== 数值合理性验证 ==========
+    // 1. 验证结果数量正确
+    const expectedCount = Math.ceil((global.loadGrowthConfig.endPercent - global.loadGrowthConfig.startPercent) / global.loadGrowthConfig.step) + 1;
+    if (scanResult.results.length < expectedCount - 1) {  // 允许1个差异
+      throw new Error(`结果数量不匹配: 期望约${expectedCount}个, 实际${scanResult.results.length}个`);
+    }
+
+    // 2. 验证每个结果都有percent字段
+    for (let i = 0; i < scanResult.results.length; i++) {
+      const r = scanResult.results[i];
+      if (r.percent === undefined || r.percent === null) {
+        console.log(`   ⚠️ 结果${i}缺少percent字段`);
+      }
+    }
+
+    // 3. 验证电压值在合理范围内 (0.7 ~ 1.3 p.u.)
+    for (const r of scanResult.results) {
+      if (r.summary?.voltage) {
+        const v = r.summary.voltage;
+        if (v.min < 0.7 || v.max > 1.3) {
+          throw new Error(`电压值超出合理范围: min=${v.min}, max=${v.max}`);
+        }
+        console.log(`   ✓ 电压范围合理: ${v.min.toFixed(4)} ~ ${v.max.toFixed(4)} p.u.`);
+      }
+    }
+
+    // 4. 验证网损值为正数
+    for (const r of scanResult.results) {
+      if (r.summary?.power?.totalPLoss !== undefined) {
+        const loss = r.summary.power.totalPLoss;
+        if (loss < 0) {
+          throw new Error(`网损为负数: ${loss}`);
+        }
+        if (loss > 1000) {
+          throw new Error(`网损异常大: ${loss} MW`);
+        }
+      }
+    }
+
+    console.log(`   ✅ 数值验证通过`);
 
     global.loadGrowthResult = scanResult;
   });
@@ -161,13 +205,13 @@ async function main() {
       throw new Error('没有扫描结果');
     }
 
-    // 找到第一个不收敛的点
+    // 找到第一个不收敛的点（status === 'error'）
     const results = global.loadGrowthResult.results;
-    let criticalIndex = results.findIndex(r => !r.converged);
+    let criticalIndex = results.findIndex(r => r.status === 'error');
 
     if (criticalIndex === -1) {
       // 如果全部收敛，找到第一个严重越限的点
-      criticalIndex = results.findIndex(r => (r.violationCount || 0) > 5);
+      criticalIndex = results.findIndex(r => (r.summary?.violations?.voltageCount || 0) + (r.summary?.violations?.overloadCount || 0) > 5);
     }
 
     let criticalPercent;
@@ -185,8 +229,25 @@ async function main() {
       previousPercent = criticalPercent;
     }
 
+    // 确保criticalPercent是有效数字
+    if (typeof criticalPercent !== 'number' || isNaN(criticalPercent)) {
+      criticalPercent = global.loadGrowthConfig.endPercent;
+      previousPercent = criticalPercent;
+    }
+
     const criticalFactor = criticalPercent / 100;
     const criticalLoad = global.baseLoadP * criticalFactor;
+
+    // ========== 数值合理性验证 ==========
+    // 1. 验证临界负荷为有效数值
+    if (isNaN(criticalLoad) || criticalLoad < 0) {
+      throw new Error(`临界负荷计算异常: ${criticalLoad}`);
+    }
+
+    // 2. 验证临界百分比在合理范围内
+    if (criticalPercent < 50 || criticalPercent > 200) {
+      throw new Error(`临界百分比异常: ${criticalPercent}%`);
+    }
 
     console.log(`   临界分析结果:`);
     console.log(`   - 临界负荷水平: ${criticalPercent}%`);

@@ -35,7 +35,7 @@ class OptimizationSkill {
 
     // 运行基准潮流
     const pfResult = await this.client.runSimulation(rid, 0, 0);
-    await this.client.waitForCompletion(pfResult.jobId);
+    await this.client.waitForCompletion(pfResult.job_id);
 
     // 提取发电机数据
     const generators = this._extractGenerators(components, costFunctions);
@@ -88,8 +88,8 @@ class OptimizationSkill {
 
     // 运行基准潮流
     const pfBase = await this.client.runSimulation(rid, 0, 0);
-    await this.client.waitForCompletion(pfBase.jobId);
-    const baseResults = await this.client.getPowerFlowResults(pfBase.jobId);
+    await this.client.waitForCompletion(pfBase.job_id);
+    const baseResults = await this.client.getPowerFlowResults(pfBase.job_id);
 
     const baseLoss = this._calculateLoss(baseResults);
     console.log(`[Optimization] 基准网损: ${baseLoss.toFixed(2)} MW`);
@@ -221,8 +221,8 @@ class OptimizationSkill {
 
     // 运行基准潮流
     const pfBase = await this.client.runSimulation(rid, 0, 0);
-    await this.client.waitForCompletion(pfBase.jobId);
-    const baseResults = await this.client.getPowerFlowResults(pfBase.jobId);
+    await this.client.waitForCompletion(pfBase.job_id);
+    const baseResults = await this.client.getPowerFlowResults(pfBase.job_id);
 
     // 识别电压越限
     const violations = this._checkVoltageViolations(baseResults);

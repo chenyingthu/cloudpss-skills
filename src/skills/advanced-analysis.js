@@ -22,6 +22,12 @@ class AdvancedAnalysisSkill {
   /**
    * 电磁暂态仿真分析 (US-014)
    *
+   * 基于CloudPSS SDK实现:
+   * - job = model.jobs[1] (EMT仿真任务, 索引1)
+   * - runner.result.getPlots() 获取波形图
+   * - runner.result.getPlotChannelNames(i) 获取通道名称
+   * - runner.result.getPlotChannelData(i, val) 获取通道数据
+   *
    * @param {string} rid - 项目 rid
    * @param {Object} faultConfig - 故障配置
    * @returns {Promise<Object>} EMT仿真结果
@@ -32,11 +38,12 @@ class AdvancedAnalysisSkill {
       faultType,       // 故障类型: '3phase', '2phase', '1phase'
       faultTime,       // 故障起始时间 (s)
       faultDuration,   // 故障持续时间 (s)
-      jobIndex = 0     // 计算方案索引
+      jobIndex = 1     // 计算方案索引 (默认1=EMT)
     } = faultConfig;
 
     console.log(`\n[EMT] 电磁暂态仿真分析`);
-    console.log(`[EMT] 故障位置: ${faultLocation}, 类型: ${faultType}`);
+    console.log(`[EMT] 故障位置: ${faultLocation || '默认'}, 类型: ${faultType || '默认'}`);
+    console.log(`[EMT] 计算方案索引: ${jobIndex}`);
 
     // 运行EMT仿真
     try {
@@ -71,21 +78,45 @@ class AdvancedAnalysisSkill {
 
   /**
    * 提取EMT结果
+   *
+   * 使用 CloudPSS client.getEMTResults() 方法
    */
   async _extractEMTResults(jobId, faultConfig) {
     try {
-      // 获取通道数据
-      const channels = await this.client.getPlotData(jobId, 0);
+      // 使用client已有的getEMTResults方法获取结果
+      const emtResults = await this.client.getEMTResults(jobId, 0);
+
+      if (!emtResults || !emtResults.plots || emtResults.plots.length === 0) {
+        console.log(`[EMT] 未获取到波形数据`);
+        return {
+          plots: [],
+          channels: [],
+          channelData: {},
+          faultTime: faultConfig?.faultTime,
+          faultDuration: faultConfig?.faultDuration,
+          note: '无波形数据'
+        };
+      }
+
+      console.log(`[EMT] 获取到 ${emtResults.plots.length} 个波形图`);
+      console.log(`[EMT] 共 ${emtResults.channels?.length || 0} 个通道`);
 
       return {
-        channels: channels || [],
-        faultTime: faultConfig.faultTime,
-        faultDuration: faultConfig.faultDuration
+        plots: emtResults.plots,
+        channels: emtResults.channels || [],
+        channelData: emtResults.channelData || {},
+        faultTime: faultConfig?.faultTime,
+        faultDuration: faultConfig?.faultDuration
       };
     } catch (error) {
+      console.log(`[EMT] 结果提取失败: ${error.message}`);
       return {
+        plots: [],
         channels: [],
-        note: '波形数据提取需要进一步实现'
+        channelData: {},
+        error: error.message,
+        faultTime: faultConfig?.faultTime,
+        faultDuration: faultConfig?.faultDuration
       };
     }
   }

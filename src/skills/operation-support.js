@@ -421,7 +421,7 @@ class OperationSupportSkill {
 
     // 获取当前系统状态
     const components = await this.client.getAllComponents(rid);
-    const modelInfo = await this.client.getModel(rid);
+    const modelInfo = await this.client.fetchModel(rid);
 
     const snapshot = {
       id: `snapshot_${Date.now()}`,

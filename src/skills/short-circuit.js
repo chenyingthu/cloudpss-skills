@@ -27,11 +27,46 @@ class ShortCircuitSkill {
     console.log(`\n[ShortCircuit] 三相短路电流计算`);
     console.log(`[ShortCircuit] 算例: ${rid}`);
 
-    // 获取系统元件
-    const components = await this.client.getAllComponents(rid);
+    // 获取拓扑数据（包含完整的 pins 连接信息）
+    // 注意：必须使用 getTopology() 而不是 getAllComponents()
+    // 因为 getAllComponents() 返回的 pins 为空，而 getTopology() 返回解析后的连接编号
+    console.log(`[ShortCircuit] 获取拓扑数据...`);
+    const topologyData = await this.client.getTopology(rid, 'powerFlow');
+    const components = topologyData.components || {};
+
+    console.log(`[ShortCircuit] 获取到 ${Object.keys(components).length} 个元件`);
 
     // 构建节点导纳矩阵
-    const { Ybus, buses: busList, baseMVA } = await this._buildYbus(components);
+    const { Ybus, buses: busList, baseMVA, connectivityStatus } = await this._buildYbus(components);
+
+    // 检查数据质量
+    if (!connectivityStatus.hasLineConnectivity) {
+      console.log(`[ShortCircuit] ⚠️ 警告: 线路连接信息缺失，无法构建准确的导纳矩阵`);
+      console.log(`[ShortCircuit] 建议: 请确保模型数据包含完整的元件连接信息`);
+
+      // 返回带有警告的结果
+      return {
+        success: false,
+        type: 'three-phase',
+        error: 'DATA_INCOMPLETE',
+        message: '线路连接信息缺失，短路电流计算需要完整的元件连接数据',
+        details: {
+          busCount: busList.length,
+          lineCount: connectivityStatus.lineCount,
+          generatorCount: connectivityStatus.generatorCount,
+          connectedGenerators: connectivityStatus.connectedGenerators,
+          suggestion: '请使用 getTopology() 获取完整的拓扑连接信息'
+        },
+        results: [],
+        summary: {
+          total: busList.length,
+          validCount: 0,
+          invalidCount: busList.length,
+          warning: '数据不完整，无法计算短路电流'
+        },
+        timestamp: new Date().toISOString()
+      };
+    }
 
     // 求解短路电流
     const results = [];
@@ -79,7 +114,11 @@ class ShortCircuitSkill {
 
     console.log(`\n[ShortCircuit] 单相短路电流计算`);
 
-    const components = await this.client.getAllComponents(rid);
+    // 获取拓扑数据（包含完整的 pins 连接信息）
+    // 注意：必须使用 getTopology() 而不是 getAllComponents()
+    // 因为 getAllComponents() 返回的 pins 为空，而 getTopology() 返回解析后的连接编号
+    const topologyData = await this.client.getTopology(rid, 'powerFlow');
+    const components = topologyData.components || {};
 
     // 构建序网阻抗
     const { Z1, Z2, Z0, buses: busList, baseMVA } = await this._buildSequenceImpedance(components);
@@ -211,27 +250,128 @@ class ShortCircuitSkill {
 
   // ========== 内部方法 ==========
 
-  async _buildYbus(components) {
-    const buses = [];
-    const busMap = {};
-    let baseMVA = 100;
+  /**
+   * 从元件的 pins 中提取连接的节点
+   * CloudPSS pins 结构: { "pinId": "nodeId", ... }
+   * 例如: 线路 pins = { "0": "bus1", "1": "bus2" }
+   *       发电机 pins = { "0": "bus5" }
+   */
+  _getConnectedNodes(comp) {
+    const pins = comp.pins || {};
+    const nodes = [];
 
-    // 提取母线
+    for (const [pinId, nodeId] of Object.entries(pins)) {
+      if (nodeId && nodeId !== '') {
+        nodes.push({ pinId, nodeId });
+      }
+    }
+
+    return nodes;
+  }
+
+  /**
+   * 构建电气节点到母线的映射
+   * CloudPSS 使用电气节点ID（如 @S2M）连接元件
+   * 需要先构建所有元件的节点映射，再找出每个电气节点连接的母线
+   */
+  _buildNodeToBusMap(components) {
+    const nodeToBus = {};
+    const busKeyToIndex = {};
+    const buses = [];
+
+    // 第一步：识别所有母线元件
     for (const [key, comp] of Object.entries(components)) {
       const def = (comp.definition || '').toLowerCase();
       if (def.includes('bus') || def.includes('node')) {
-        busMap[key] = buses.length;
+        busKeyToIndex[key] = buses.length;
         buses.push(key);
       }
-      if (comp.args?.baseMVA) {
-        baseMVA = comp.args.baseMVA;
+    }
+
+    // 第二步：构建所有元件的节点映射（类似 topology-analysis）
+    const nodeMap = {};  // nodeId -> [components]
+    for (const [key, comp] of Object.entries(components)) {
+      const pins = comp.pins || {};
+      for (const [pinId, nodeId] of Object.entries(pins)) {
+        if (nodeId && nodeId !== '') {
+          if (!nodeMap[nodeId]) {
+            nodeMap[nodeId] = [];
+          }
+          nodeMap[nodeId].push({ key, comp });
+        }
       }
     }
+
+    // 第三步：对于每个电气节点，找到连接的母线
+    for (const [nodeId, comps] of Object.entries(nodeMap)) {
+      // 在连接到该节点的所有元件中找母线
+      for (const { key, comp } of comps) {
+        const def = (comp.definition || '').toLowerCase();
+        if (def.includes('bus') || def.includes('node')) {
+          nodeToBus[nodeId] = {
+            busKey: key,
+            busIndex: busKeyToIndex[key],
+            busLabel: comp.label || key
+          };
+          break;  // 找到一个母线即可
+        }
+      }
+    }
+
+    return { nodeToBus, busKeyToIndex, buses };
+  }
+
+  /**
+   * 从 dump 文件解析元件数据
+   * CloudPSS 官方 dump 格式: revision.implements.diagram.cells
+   *
+   * @param {Object} dumpData - dump 文件内容
+   * @returns {Object} 元件字典 { key: comp }
+   */
+  _parseDumpFile(dumpData) {
+    const components = {};
+
+    // 检查是否为官方 dump 格式
+    if (dumpData.revision?.implements?.diagram?.cells) {
+      const cells = dumpData.revision.implements.diagram.cells;
+
+      for (const [key, cell] of Object.entries(cells)) {
+        if (cell.definition) {
+          components[key] = {
+            key,
+            id: cell.id,
+            label: cell.label || key,
+            definition: cell.definition,
+            args: cell.args || {},
+            pins: cell.pins || {}
+          };
+        }
+      }
+
+      console.log(`[ShortCircuit] 从 dump 文件解析: ${Object.keys(components).length} 个元件`);
+    } else {
+      // 兼容其他格式
+      console.log(`[ShortCircuit] ⚠️ 无法识别的 dump 文件格式`);
+    }
+
+    return components;
+  }
+
+  async _buildYbus(components) {
+    let baseMVA = 100;
+
+    // 构建电气节点到母线的映射
+    const { nodeToBus, busKeyToIndex, buses } = this._buildNodeToBusMap(components);
+
+    console.log(`[ShortCircuit] 找到 ${buses.length} 个母线节点`);
 
     const n = buses.length;
     const Ybus = Array(n).fill(null).map(() =>
       Array(n).fill(null).map(() => ({ g: 0, b: 0 }))
     );
+
+    let lineCount = 0;
+    let connectedLines = 0;
 
     // 添加支路导纳
     for (const [key, comp] of Object.entries(components)) {
@@ -239,51 +379,88 @@ class ShortCircuitSkill {
       const args = comp.args || {};
 
       if (def.includes('line') || def.includes('branch')) {
-        const from = comp.ports?.from;
-        const to = comp.ports?.to;
+        lineCount++;
+        // 使用 pins 获取连接的电气节点
+        const nodes = this._getConnectedNodes(comp);
 
-        if (from && to && busMap[from] !== undefined && busMap[to] !== undefined) {
-          const i = busMap[from];
-          const j = busMap[to];
+        if (nodes.length >= 2) {
+          const fromNodeId = nodes[0].nodeId;
+          const toNodeId = nodes[1].nodeId;
 
-          const R = args.R || 0.01;
-          const X = args.X || 0.1;
-          const B = args.B || 0;
+          // 通过电气节点找到对应的母线
+          const fromBusInfo = nodeToBus[fromNodeId];
+          const toBusInfo = nodeToBus[toNodeId];
 
-          const Z2 = R * R + X * X;
-          const y = { g: R / Z2, b: -X / Z2 };
-          const ysh = { g: 0, b: B / 2 };
+          if (fromBusInfo && toBusInfo) {
+            connectedLines++;
+            const i = fromBusInfo.busIndex;
+            const j = toBusInfo.busIndex;
 
-          // 非对角元素
-          Ybus[i][j].g -= y.g;
-          Ybus[i][j].b -= y.b;
-          Ybus[j][i].g -= y.g;
-          Ybus[j][i].b -= y.b;
+            const R = args.R || args.R1 || 0.01;
+            const X = args.X || args.X1 || 0.1;
+            const B = args.B || args.B1 || 0;
 
-          // 对角元素
-          Ybus[i][i].g += y.g + ysh.g;
-          Ybus[i][i].b += y.b + ysh.b;
-          Ybus[j][j].g += y.g + ysh.g;
-          Ybus[j][j].b += y.b + ysh.b;
+            const Z2 = R * R + X * X;
+            const y = { g: R / Z2, b: -X / Z2 };
+            const ysh = { g: 0, b: B / 2 };
+
+            // 非对角元素
+            Ybus[i][j].g -= y.g;
+            Ybus[i][j].b -= y.b;
+            Ybus[j][i].g -= y.g;
+            Ybus[j][i].b -= y.b;
+
+            // 对角元素
+            Ybus[i][i].g += y.g + ysh.g;
+            Ybus[i][i].b += y.b + ysh.b;
+            Ybus[j][j].g += y.g + ysh.g;
+            Ybus[j][j].b += y.b + ysh.b;
+          }
         }
       }
     }
+
+    console.log(`[ShortCircuit] 线路: ${lineCount} 条, 成功连接: ${connectedLines} 条`);
+
+    let genCount = 0;
+    let connectedGens = 0;
 
     // 添加发电机次暂态电抗
     for (const [key, comp] of Object.entries(components)) {
       const def = (comp.definition || '').toLowerCase();
-      if (def.includes('gen')) {
-        const bus = comp.ports?.bus;
-        if (bus && busMap[bus] !== undefined) {
-          const i = busMap[bus];
-          const Xd = comp.args?.Xd || 0.2;  // 次暂态电抗
+      const args = comp.args || {};
 
-          Ybus[i][i].b += 1 / Xd;
+      if (def.includes('gen')) {
+        genCount++;
+        // 使用 pins 获取连接的电气节点
+        const nodes = this._getConnectedNodes(comp);
+        if (nodes.length >= 1) {
+          const nodeId = nodes[0].nodeId;
+          const busInfo = nodeToBus[nodeId];
+
+          if (busInfo) {
+            connectedGens++;
+            const i = busInfo.busIndex;
+            const Xd = args.Xd || args.Xd1 || 0.2;  // 次暂态电抗
+
+            Ybus[i][i].b += 1 / Xd;
+          }
         }
       }
     }
 
-    return { Ybus, buses, baseMVA };
+    console.log(`[ShortCircuit] 发电机: ${genCount} 台, 成功连接: ${connectedGens} 台`);
+
+    // 返回连接状态信息
+    const connectivityStatus = {
+      lineCount,
+      connectedLines,
+      generatorCount: genCount,
+      connectedGenerators: connectedGens,
+      hasLineConnectivity: connectedLines > 0 || lineCount === 0
+    };
+
+    return { Ybus, buses, baseMVA, connectivityStatus };
   }
 
   _calculateBusShortCircuit(bus, busIdx, Ybus, baseMVA, components) {
@@ -292,12 +469,47 @@ class ShortCircuitSkill {
 
     // 计算戴维南等效阻抗
     const Yii = Ybus[busIdx][busIdx];
+
+    // 检查导纳是否有效（非零）
+    const Ymag = Math.sqrt(Yii.g * Yii.g + Yii.b * Yii.b);
+    if (Ymag < 1e-10) {
+      // 导纳矩阵元素接近零，无法计算短路电流
+      return {
+        bus,
+        Isc_kA: '0.00',
+        Isc_pu: '0.0000',
+        Ssc_MVA: '0.00',
+        Zth_ohm: { r: 'N/A', x: 'N/A' },
+        XR_ratio: 'N/A',
+        baseKV: 110,
+        baseMVA,
+        valid: false,
+        error: '节点孤立或导纳为零'
+      };
+    }
+
     const Zth = {
       r: Yii.g / (Yii.g * Yii.g + Yii.b * Yii.b),
       x: -Yii.b / (Yii.g * Yii.g + Yii.b * Yii.b)
     };
 
     const Zth_mag = Math.sqrt(Zth.r * Zth.r + Zth.x * Zth.x);
+
+    // 防止除以零
+    if (Zth_mag < 1e-10) {
+      return {
+        bus,
+        Isc_kA: '∞',
+        Isc_pu: '∞',
+        Ssc_MVA: '∞',
+        Zth_ohm: { r: '0.0000', x: '0.0000' },
+        XR_ratio: 'N/A',
+        baseKV: 110,
+        baseMVA,
+        valid: false,
+        error: '阻抗接近零（理想电压源）'
+      };
+    }
 
     // 计算短路电流
     const Isc_pu = Vprefault / Zth_mag;
@@ -310,8 +522,8 @@ class ShortCircuitSkill {
     // 短路容量
     const Ssc = Math.sqrt(3) * baseKV * Isc_kA;  // MVA
 
-    // X/R 比值
-    const XR_ratio = Zth.x / Zth.r;
+    // X/R 比值（防止除以零）
+    const XR_ratio = Zth.r > 1e-10 ? (Zth.x / Zth.r) : 999;
 
     return {
       bus,
@@ -321,7 +533,8 @@ class ShortCircuitSkill {
       Zth_ohm: { r: Zth.r.toFixed(4), x: Zth.x.toFixed(4) },
       XR_ratio: XR_ratio.toFixed(2),
       baseKV,
-      baseMVA
+      baseMVA,
+      valid: true
     };
   }
 
@@ -353,15 +566,33 @@ class ShortCircuitSkill {
   }
 
   _generateSummary(results) {
-    const Isc_values = results.map(r => parseFloat(r.Isc_kA));
+    // 过滤有效结果
+    const validResults = results.filter(r => r.valid !== false);
+    const Isc_values = validResults.map(r => parseFloat(r.Isc_kA)).filter(v => !isNaN(v) && isFinite(v));
+
+    if (Isc_values.length === 0) {
+      return {
+        total: results.length,
+        validCount: 0,
+        invalidCount: results.length,
+        maxIsc_kA: 'N/A',
+        minIsc_kA: 'N/A',
+        avgIsc_kA: 'N/A',
+        maxBus: null,
+        minBus: null,
+        warning: '无有效短路电流计算结果'
+      };
+    }
 
     return {
       total: results.length,
+      validCount: validResults.length,
+      invalidCount: results.length - validResults.length,
       maxIsc_kA: Math.max(...Isc_values).toFixed(2),
       minIsc_kA: Math.min(...Isc_values).toFixed(2),
       avgIsc_kA: (Isc_values.reduce((a, b) => a + b, 0) / Isc_values.length).toFixed(2),
-      maxBus: results.find(r => parseFloat(r.Isc_kA) === Math.max(...Isc_values))?.bus,
-      minBus: results.find(r => parseFloat(r.Isc_kA) === Math.min(...Isc_values))?.bus
+      maxBus: validResults.find(r => parseFloat(r.Isc_kA) === Math.max(...Isc_values))?.bus,
+      minBus: validResults.find(r => parseFloat(r.Isc_kA) === Math.min(...Isc_values))?.bus
     };
   }
 
