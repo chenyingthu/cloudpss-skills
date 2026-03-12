@@ -111,16 +111,18 @@ class HybridAPIManager {
       } catch (e) {
         console.warn(`[HybridAPI] Local load failed: ${e.message}`);
 
-        // 如果模式是 auto，尝试 API
+        // 如果模式是 auto，尝试 API（使用原始方法避免代理循环）
         if (this.mode === 'auto' && source.originalRid) {
           console.log(`[HybridAPI] Falling back to API...`);
-          return this.client.getTopology(source.originalRid, type);
+          const fn = this.client._originalGetTopology || this.client.getTopology;
+          return fn(source.originalRid, type);
         }
         throw e;
       }
     } else {
-      // API 模式
-      return this.client.getTopology(ridOrTag, type);
+      // API 模式（使用原始方法避免代理循环）
+      const fn = this.client._originalGetTopology || this.client.getTopology;
+      return fn(ridOrTag, type);
     }
   }
 
@@ -146,12 +148,16 @@ class HybridAPIManager {
 
         if (this.mode === 'auto' && source.originalRid) {
           console.log(`[HybridAPI] Falling back to API...`);
-          return this.client.getAllComponents(source.originalRid);
+          // 使用原始方法避免代理循环
+          const fn = this.client._originalGetAllComponents || this.client.getAllComponents;
+          return fn(source.originalRid);
         }
         throw e;
       }
     } else {
-      return this.client.getAllComponents(ridOrTag);
+      // API 模式（使用原始方法避免代理循环）
+      const fn = this.client._originalGetAllComponents || this.client.getAllComponents;
+      return fn(ridOrTag);
     }
   }
 
