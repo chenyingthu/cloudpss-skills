@@ -275,6 +275,7 @@ def get_power_flow_results(job_id: str) -> Dict[str, Any]:
         潮流结果（buses 和 branches）
     """
     import time
+    import sys
 
     # 1. 等待任务完成
     job = cloudpss.Job.fetch(job_id)
@@ -288,34 +289,44 @@ def get_power_flow_results(job_id: str) -> Dict[str, Any]:
         elapsed += wait_interval
 
     if not job.status():
+        print(f'[PF] Timeout waiting for job {job_id}', file=sys.stderr)
         return {'buses': [], 'branches': [], 'error': 'Task timeout after waiting'}
 
     # 2. 任务完成后重新获取结果对象
     result = job.result
     if not result:
+        print(f'[PF] No result available for job {job_id}', file=sys.stderr)
         return {'buses': [], 'branches': [], 'error': 'No result available'}
 
     # 3. 尝试不同的结果访问方式
     if hasattr(result, 'getBuses') and hasattr(result, 'getBranches'):
+        print(f'[PF] Using getBuses/getBranches methods', file=sys.stderr)
         buses_raw = result.getBuses()
         branches_raw = result.getBranches()
 
+        print(f'[PF] buses_raw type: {type(buses_raw).__name__}', file=sys.stderr)
+        print(f'[PF] branches_raw type: {type(branches_raw).__name__}', file=sys.stderr)
+
         # 解析 buses 数据
         buses = _parse_branches_or_buses(buses_raw, 'buses')
+        print(f'[PF] buses parsed: {len(buses)} items', file=sys.stderr)
 
         # 解析 branches 数据
         branches = _parse_branches_or_buses(branches_raw, 'branches')
+        print(f'[PF] branches parsed: {len(branches)} items', file=sys.stderr)
 
         return {
             'buses': buses,
             'branches': branches
         }
     elif hasattr(result, 'buses') and hasattr(result, 'branches'):
+        print(f'[PF] Using .buses/.branches attributes', file=sys.stderr)
         return {
             'buses': result.buses,
             'branches': result.branches
         }
     else:
+        print(f'[PF] Unknown result format: {str(result)[:200]}', file=sys.stderr)
         return {'buses': [], 'branches': [], 'raw': str(result)}
 
 

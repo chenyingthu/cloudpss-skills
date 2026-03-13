@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1773066521379,
+  "lastScanned": 1773367452381,
   "projectRoot": "/home/chenying/researches/cloudpss-skills/cloudpsss-skills",
   "techStack": {
     "languages": [
@@ -44,329 +44,200 @@
     "isMonorepo": false,
     "workspaces": [],
     "mainDirectories": [
+      "docs",
       "examples",
-      "src"
+      "scripts",
+      "src",
+      "tests"
     ],
     "gitBranches": null
   },
   "customNotes": [],
   "directoryMap": {
+    "claudedocs": {
+      "path": "claudedocs",
+      "purpose": null,
+      "fileCount": 2,
+      "lastAccessed": 1773367452350,
+      "keyFiles": [
+        "detailed-research-report.md",
+        "fusion-test-report.md"
+      ]
+    },
+    "docs": {
+      "path": "docs",
+      "purpose": "Documentation",
+      "fileCount": 5,
+      "lastAccessed": 1773367452351,
+      "keyFiles": [
+        "TOKEN-UNIFICATION.md",
+        "TOPOLOGY-ANALYSIS.md",
+        "local-file-strategy.md",
+        "multi-agent-experiment-report.md",
+        "n1-contingency-scan.md"
+      ]
+    },
     "examples": {
       "path": "examples",
       "purpose": "Example code",
-      "fileCount": 4,
-      "lastAccessed": 1773066521372,
+      "fileCount": 8,
+      "lastAccessed": 1773367452367,
       "keyFiles": [
         "analyze-results.js",
+        "batch-simulation.js",
         "create-simulation.js",
-        "list-projects.js",
-        "test-connection.js"
+        "harmonic-analysis.js",
+        "list-projects.js"
       ]
+    },
+    "experiment": {
+      "path": "experiment",
+      "purpose": null,
+      "fileCount": 3,
+      "lastAccessed": 1773367452367,
+      "keyFiles": [
+        "benchmark-scenarios.md",
+        "experiment-config.yaml",
+        "metrics-schema.json"
+      ]
+    },
+    "experiment-data": {
+      "path": "experiment-data",
+      "purpose": null,
+      "fileCount": 2,
+      "lastAccessed": 1773367452371,
+      "keyFiles": [
+        "ieee3-full-structure.json",
+        "metrics-session-2026-03-09T1456.json"
+      ]
+    },
+    "local-models": {
+      "path": "local-models",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1773367452372,
+      "keyFiles": []
     },
     "python": {
       "path": "python",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1773066521372,
+      "lastAccessed": 1773367452372,
       "keyFiles": [
         "cloudpss_wrapper.py"
+      ]
+    },
+    "scripts": {
+      "path": "scripts",
+      "purpose": "Build/utility scripts",
+      "fileCount": 2,
+      "lastAccessed": 1773367452372,
+      "keyFiles": [
+        "collect-metrics.js",
+        "export-model-structure.py"
       ]
     },
     "src": {
       "path": "src",
       "purpose": "Source code",
       "fileCount": 1,
-      "lastAccessed": 1773066521376,
+      "lastAccessed": 1773367452373,
       "keyFiles": [
         "index.js"
       ]
     },
+    "tests": {
+      "path": "tests",
+      "purpose": "Test files",
+      "fileCount": 14,
+      "lastAccessed": 1773367452373,
+      "keyFiles": [
+        "batch-simulation.test.js",
+        "component-analysis.test.js",
+        "comprehensive-validation.test.js",
+        "debug-powerflow-results.js",
+        "deep-cognitive-test.js"
+      ]
+    },
+    "user-stories": {
+      "path": "user-stories",
+      "purpose": null,
+      "fileCount": 8,
+      "lastAccessed": 1773367452373,
+      "keyFiles": [
+        "01-model-building.md",
+        "02-simulation.md",
+        "03-security-analysis.md",
+        "04-batch-optimization.md",
+        "05-reporting.md"
+      ]
+    },
+    "local-models/models": {
+      "path": "local-models/models",
+      "purpose": "Data models",
+      "fileCount": 0,
+      "lastAccessed": 1773367452374,
+      "keyFiles": []
+    },
     "src/api": {
       "path": "src/api",
       "purpose": "API routes",
-      "fileCount": 2,
-      "lastAccessed": 1773066521377,
+      "fileCount": 3,
+      "lastAccessed": 1773367452374,
       "keyFiles": [
         "client.js",
+        "hybrid-manager.js",
         "python-bridge.js"
+      ]
+    },
+    "src/utils": {
+      "path": "src/utils",
+      "purpose": "Utility functions",
+      "fileCount": 1,
+      "lastAccessed": 1773367452375,
+      "keyFiles": [
+        "local-loader.js"
+      ]
+    },
+    "tests/api": {
+      "path": "tests/api",
+      "purpose": "API routes",
+      "fileCount": 1,
+      "lastAccessed": 1773367452375,
+      "keyFiles": [
+        "hybrid-manager.test.js"
       ]
     }
   },
   "hotPaths": [
     {
       "path": "python/cloudpss_wrapper.py",
-      "accessCount": 86,
-      "lastAccessed": 1773154828368,
-      "type": "file"
-    },
-    {
-      "path": "src/index.js",
-      "accessCount": 30,
-      "lastAccessed": 1773152272217,
-      "type": "file"
-    },
-    {
-      "path": "src/api/python-bridge.js",
-      "accessCount": 21,
-      "lastAccessed": 1773154083631,
-      "type": "file"
-    },
-    {
-      "path": "tests/deep-cognitive-test.js",
-      "accessCount": 19,
-      "lastAccessed": 1773145081747,
-      "type": "file"
-    },
-    {
-      "path": "docs/multi-agent-experiment-report.md",
-      "accessCount": 14,
-      "lastAccessed": 1773111352169,
-      "type": "file"
-    },
-    {
-      "path": "src/skills/analyze-component.js",
-      "accessCount": 14,
-      "lastAccessed": 1773135176674,
-      "type": "file"
-    },
-    {
-      "path": "src/skills/model-overview.js",
-      "accessCount": 12,
-      "lastAccessed": 1773134564560,
-      "type": "file"
-    },
-    {
-      "path": "src/api/client.js",
-      "accessCount": 12,
-      "lastAccessed": 1773154151965,
+      "accessCount": 9,
+      "lastAccessed": 1773390493360,
       "type": "file"
     },
     {
       "path": "",
-      "accessCount": 10,
-      "lastAccessed": 1773123474452,
+      "accessCount": 3,
+      "lastAccessed": 1773376788955,
       "type": "directory"
     },
     {
-      "path": "tests/comprehensive-validation.test.js",
-      "accessCount": 8,
-      "lastAccessed": 1773126346120,
-      "type": "file"
-    },
-    {
-      "path": "src/skills/manage.js",
-      "accessCount": 7,
-      "lastAccessed": 1773152049778,
-      "type": "file"
-    },
-    {
-      "path": "README.md",
-      "accessCount": 7,
-      "lastAccessed": 1773152952310,
-      "type": "file"
-    },
-    {
-      "path": "experiment-data/ieee3-full-structure.json",
-      "accessCount": 6,
-      "lastAccessed": 1773111007698,
-      "type": "file"
-    },
-    {
-      "path": "python",
-      "accessCount": 6,
-      "lastAccessed": 1773144360688,
-      "type": "directory"
-    },
-    {
-      "path": "src/skills/batch-simulation.js",
-      "accessCount": 6,
-      "lastAccessed": 1773147654617,
-      "type": "file"
-    },
-    {
-      "path": "tests/e2e-new-skills.test.js",
-      "accessCount": 6,
-      "lastAccessed": 1773154034063,
-      "type": "file"
-    },
-    {
-      "path": "src/skills/analyze.js",
-      "accessCount": 5,
-      "lastAccessed": 1773069124867,
-      "type": "file"
-    },
-    {
-      "path": "src/skills/analyze-n1.js",
-      "accessCount": 5,
-      "lastAccessed": 1773147371377,
-      "type": "file"
-    },
-    {
-      "path": "examples/analyze-results.js",
-      "accessCount": 4,
-      "lastAccessed": 1773068462144,
-      "type": "file"
-    },
-    {
-      "path": "src/skills/extract.js",
-      "accessCount": 4,
-      "lastAccessed": 1773147173757,
-      "type": "file"
-    },
-    {
-      "path": "src/skills",
-      "accessCount": 3,
-      "lastAccessed": 1773070179957,
-      "type": "directory"
-    },
-    {
-      "path": "src/skills/analyze-harmonic.js",
-      "accessCount": 3,
-      "lastAccessed": 1773070248492,
-      "type": "file"
-    },
-    {
-      "path": "examples/batch-simulation.js",
-      "accessCount": 3,
-      "lastAccessed": 1773103001020,
-      "type": "file"
-    },
-    {
-      "path": "src/skills/topology-analysis.js",
-      "accessCount": 3,
-      "lastAccessed": 1773145060702,
-      "type": "file"
-    },
-    {
-      "path": "src/skills/n1-contingency-analysis.js",
-      "accessCount": 3,
-      "lastAccessed": 1773148298495,
-      "type": "file"
-    },
-    {
-      "path": "src/skills/power-flow-analysis.js",
-      "accessCount": 3,
-      "lastAccessed": 1773154189041,
-      "type": "file"
-    },
-    {
-      "path": "tests/n1-contingency-scan.test.js",
+      "path": "tests/e2e/e2e-power-flow.test.js",
       "accessCount": 2,
-      "lastAccessed": 1773068823282,
+      "lastAccessed": 1773376822441,
       "type": "file"
     },
     {
-      "path": ".env",
-      "accessCount": 2,
-      "lastAccessed": 1773105803024,
-      "type": "file"
-    },
-    {
-      "path": "scripts/export-model-structure.py",
-      "accessCount": 2,
-      "lastAccessed": 1773105827692,
-      "type": "file"
-    },
-    {
-      "path": "src/skills/analyze-topology.js",
-      "accessCount": 2,
-      "lastAccessed": 1773114312682,
-      "type": "file"
-    },
-    {
-      "path": "tests/official-dump-format.test.js",
-      "accessCount": 2,
-      "lastAccessed": 1773114457298,
-      "type": "file"
-    },
-    {
-      "path": "src",
-      "accessCount": 2,
-      "lastAccessed": 1773114745720,
-      "type": "directory"
-    },
-    {
-      "path": "src/skills/create.js",
+      "path": "src/api/python-bridge.js",
       "accessCount": 1,
-      "lastAccessed": 1773067365602,
-      "type": "file"
-    },
-    {
-      "path": "experiment/metrics-schema.json",
-      "accessCount": 1,
-      "lastAccessed": 1773068170977,
-      "type": "file"
-    },
-    {
-      "path": "experiment/experiment-config.yaml",
-      "accessCount": 1,
-      "lastAccessed": 1773068171145,
-      "type": "file"
-    },
-    {
-      "path": "scripts/collect-metrics.js",
-      "accessCount": 1,
-      "lastAccessed": 1773068171333,
-      "type": "file"
-    },
-    {
-      "path": "experiment/benchmark-scenarios.md",
-      "accessCount": 1,
-      "lastAccessed": 1773068207508,
-      "type": "file"
-    },
-    {
-      "path": "experiment-data/metrics-session-2026-03-09T1456.json",
-      "accessCount": 1,
-      "lastAccessed": 1773068217205,
-      "type": "file"
-    },
-    {
-      "path": "examples/n1-scan-example.js",
-      "accessCount": 1,
-      "lastAccessed": 1773068867843,
-      "type": "file"
-    },
-    {
-      "path": "docs/n1-contingency-scan.md",
-      "accessCount": 1,
-      "lastAccessed": 1773068935410,
-      "type": "file"
-    },
-    {
-      "path": "examples/harmonic-analysis.js",
-      "accessCount": 1,
-      "lastAccessed": 1773069017667,
-      "type": "file"
-    },
-    {
-      "path": "tests/batch-simulation.test.js",
-      "accessCount": 1,
-      "lastAccessed": 1773069564933,
-      "type": "file"
-    },
-    {
-      "path": "examples/test-all-p0-skills.js",
-      "accessCount": 1,
-      "lastAccessed": 1773103092925,
+      "lastAccessed": 1773368112251,
       "type": "file"
     },
     {
       "path": "src/skills/batch-simulation-enhanced.js",
       "accessCount": 1,
-      "lastAccessed": 1773147745817,
-      "type": "file"
-    },
-    {
-      "path": "tests/unit-new-skills.test.js",
-      "accessCount": 1,
-      "lastAccessed": 1773148465158,
-      "type": "file"
-    },
-    {
-      "path": "src/skills/model-management-enhanced.js",
-      "accessCount": 1,
-      "lastAccessed": 1773152178501,
+      "lastAccessed": 1773376803203,
       "type": "file"
     }
   ],

@@ -373,14 +373,20 @@ class OptimizationSkill {
 
   _calculateLoss(pfResults) {
     // 从潮流结果计算总网损
-    const buses = pfResults.buses || [];
     const branches = pfResults.branches || [];
 
     let totalLoss = 0;
 
     for (const branch of branches) {
-      const loss = Math.abs(branch.Pfrom + branch.Pto);
-      totalLoss += loss;
+      // 表格格式字段: Pij, Pji, Ploss
+      // 如果有 Ploss 字段直接使用，否则通过 Pij + Pji 计算
+      if (branch.Ploss !== undefined) {
+        totalLoss += Math.abs(branch.Ploss);
+      } else if (branch.Pfrom !== undefined) {
+        totalLoss += Math.abs(branch.Pfrom + branch.Pto);
+      } else {
+        totalLoss += Math.abs((branch.Pij || 0) + (branch.Pji || 0));
+      }
     }
 
     return totalLoss;
@@ -389,11 +395,21 @@ class OptimizationSkill {
   _analyzeLossDistribution(pfResults) {
     const branches = pfResults.branches || [];
 
-    const distribution = branches.map(b => ({
-      name: b.name || b.key,
-      loss: Math.abs((b.Pfrom || 0) + (b.Pto || 0)).toFixed(3),
-      loading: b.loading || 0
-    }));
+    const distribution = branches.map(b => {
+      let loss = 0;
+      if (b.Ploss !== undefined) {
+        loss = Math.abs(b.Ploss);
+      } else if (b.Pfrom !== undefined) {
+        loss = Math.abs(b.Pfrom + b.Pto);
+      } else {
+        loss = Math.abs((b.Pij || 0) + (b.Pji || 0));
+      }
+      return {
+        name: b.Branch || b.name || b.key,
+        loss: loss.toFixed(3),
+        loading: b.loading || 0
+      };
+    });
 
     // 按损耗排序
     distribution.sort((a, b) => parseFloat(b.loss) - parseFloat(a.loss));
