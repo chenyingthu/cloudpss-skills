@@ -300,16 +300,11 @@ def get_power_flow_results(job_id: str) -> Dict[str, Any]:
         buses_raw = result.getBuses()
         branches_raw = result.getBranches()
 
-        # 解析 table 格式 - getBuses() 返回数组，第一个元素是 table 对象
-        buses = []
-        if isinstance(buses_raw, list) and len(buses_raw) > 0:
-            table_data = buses_raw[0].get('data') if isinstance(buses_raw[0], dict) else None
-            buses = _parse_table_result(table_data) if table_data else buses_raw
+        # 解析 buses 数据
+        buses = _parse_branches_or_buses(buses_raw, 'buses')
 
-        branches = []
-        if isinstance(branches_raw, list) and len(branches_raw) > 0:
-            table_data = branches_raw[0].get('data') if isinstance(branches_raw[0], dict) else None
-            branches = _parse_table_result(table_data) if table_data else branches_raw
+        # 解析 branches 数据
+        branches = _parse_branches_or_buses(branches_raw, 'branches')
 
         return {
             'buses': buses,
@@ -322,6 +317,78 @@ def get_power_flow_results(job_id: str) -> Dict[str, Any]:
         }
     else:
         return {'buses': [], 'branches': [], 'raw': str(result)}
+
+
+def _parse_branches_or_buses(raw_data: Any, data_type: str) -> List[Dict]:
+    """
+    解析 buses 或 branches 数据（支持多种格式）
+
+    Args:
+        raw_data: 原始数据
+        data_type: 数据类型 ('buses' 或 'branches')
+
+    Returns:
+        解析后的列表数据
+    """
+    result = []
+
+    if not raw_data:
+        return result
+
+    # 格式 1: 列表，第一个元素包含 'data' 键（表格格式）
+    if isinstance(raw_data, list) and len(raw_data) > 0:
+        first_item = raw_data[0]
+
+        # 格式 1a: [{'data': {'columns': [...], 'data': [...]}}]
+        if isinstance(first_item, dict) and 'data' in first_item:
+            table_data = first_item.get('data')
+            if table_data:
+                parsed = _parse_table_result(table_data)
+                if parsed:
+                    return parsed
+
+        # 格式 1b: [{'columns': [...], 'data': [...]}] 直接在第一个元素
+        if isinstance(first_item, dict) and 'columns' in first_item:
+            parsed = _parse_table_result(first_item)
+            if parsed:
+                return parsed
+
+        # 格式 1c: 列表直接包含数据字典
+        if isinstance(first_item, dict) and ('Bus' in first_item or 'From' in first_item or 'from' in first_item):
+            return raw_data
+
+        # 格式 1d: 列表包含对象，需要调用 .data 或 ._data
+        if hasattr(first_item, 'data'):
+            for item in raw_data:
+                item_data = getattr(item, 'data', None) or getattr(item, '_data', None)
+                if item_data:
+                    result.append(item_data)
+
+        # 如果以上都不匹配，直接返回原始列表
+        if not result and raw_data:
+            result = raw_data
+
+    # 格式 2: 对象，有 .data 或 ._data 属性
+    if hasattr(raw_data, 'data') or hasattr(raw_data, '_data'):
+        data = getattr(raw_data, 'data', None) or getattr(raw_data, '_data', None)
+        if data:
+            if isinstance(data, list):
+                return data
+            elif hasattr(data, 'columns'):
+                return _parse_table_result(data)
+
+    # 格式 3: 对象，有 getPlots/getBuses/getBranches 方法
+    if hasattr(raw_data, '__iter__') and not isinstance(raw_data, (str, dict)):
+        try:
+            for item in raw_data:
+                if isinstance(item, dict):
+                    result.append(item)
+                elif hasattr(item, '__dict__'):
+                    result.append(vars(item) if hasattr(item, '__dict__') else str(item))
+        except TypeError:
+            pass
+
+    return result if result else list(raw_data) if isinstance(raw_data, (list, tuple)) else []
 
 
 def get_emt_results(job_id: str, plot_index: int = 0) -> Dict[str, Any]:
