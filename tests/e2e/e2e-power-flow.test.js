@@ -312,7 +312,8 @@ async function main() {
     const sweepResult = await skills.batchEnhanced.parameterSweep(
       rid,
       global.sweepConfig.parameter,
-      values
+      values,
+      { maxParallel: 2 }  // 降低并行度避免 API 限流
     );
 
     if (!sweepResult || !sweepResult.results) {
