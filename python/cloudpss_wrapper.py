@@ -1639,12 +1639,13 @@ def run_batch_simulations(scenarios: List[Dict[str, Any]],
     from concurrent.futures import ThreadPoolExecutor, as_completed
     import threading
 
-    model = cloudpss.Model.fetch(rid)
+    # 只读取一次原始模型，每个场景使用独立执行（避免资源冲突）
+    base_model = cloudpss.Model.fetch(rid)
     results = []
     lock = threading.Lock()
 
     def run_single_scenario(scenario: Dict[str, Any], scenario_index: int) -> Dict[str, Any]:
-        """运行单个场景"""
+        """运行单个场景 - 每个场景独立执行，避免并行冲突"""
         start_time = time.time()
         result = {
             'scenario_name': scenario.get('name', f'Scenario_{scenario_index}'),
@@ -1657,27 +1658,26 @@ def run_batch_simulations(scenarios: List[Dict[str, Any]],
         }
 
         try:
-            # 1. 应用场景配置
+            # 1. 重新获取模型（确保每个场景使用独立的模型实例）
+            model = cloudpss.Model.fetch(rid)
+
+            # 2. 应用场景配置
             config = scenario.get('config')
             components = scenario.get('components', [])
-
-            # 保存原始状态
-            original_states = {}
 
             # 更新元件参数
             for comp in components:
                 element_id = comp.get('element_id')
                 args = comp.get('args', {})
                 if element_id and args:
-                    # 保存原始状态
-                    original_states[element_id] = model.getAllComponents().get(element_id)
                     # 更新元件
                     model.updateComponent(element_id, args=args)
 
-            # 保存修改
-            model.save()
+            # 保存修改（使用临时模型名称避免冲突）
+            # 不在云端保存，只用于本次仿真
+            # model.save()  # 已移除：避免并行保存冲突
 
-            # 2. 运行仿真
+            # 3. 运行仿真
             if not model.jobs:
                 raise ValueError(f'No job defined in model for scenario {scenario_index}')
 
@@ -1688,7 +1688,7 @@ def run_batch_simulations(scenarios: List[Dict[str, Any]],
             job_id = runner.id if hasattr(runner, 'id') else runner.job_id
             result['job_id'] = job_id
 
-            # 3. 等待完成
+            # 4. 等待完成
             timeout = 180  # 3 分钟超时
             wait_start = time.time()
 
@@ -1697,7 +1697,7 @@ def run_batch_simulations(scenarios: List[Dict[str, Any]],
                     raise TimeoutError('Simulation timeout')
                 time.sleep(0.5)
 
-            # 4. 获取结果
+            # 5. 获取结果
             sim_result = runner.result
             if sim_result:
                 if hasattr(sim_result, 'getBuses') and hasattr(sim_result, 'getBranches'):
@@ -1729,23 +1729,9 @@ def run_batch_simulations(scenarios: List[Dict[str, Any]],
                 result['status'] = 'convergence_error'
                 result['error'] = 'No result (convergence failure?)'
 
-            # 5. 恢复原始状态
-            for element_id, orig_state in original_states.items():
-                if orig_state:
-                    model.updateComponent(element_id, args=orig_state.get('args', {}))
-            model.save()
-
         except Exception as e:
             result['status'] = 'failed'
             result['error'] = str(e)
-            # 尝试恢复原始状态
-            try:
-                for element_id, orig_state in original_states.items():
-                    if orig_state:
-                        model.updateComponent(element_id, args=orig_state.get('args', {}))
-                model.save()
-            except:
-                pass
 
         result['execution_time'] = round(time.time() - start_time, 2)
         return result
