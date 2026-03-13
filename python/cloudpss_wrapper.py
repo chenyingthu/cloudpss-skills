@@ -377,17 +377,6 @@ def _parse_branches_or_buses(raw_data: Any, data_type: str) -> List[Dict]:
             elif hasattr(data, 'columns'):
                 return _parse_table_result(data)
 
-    # 格式 3: 对象，有 getPlots/getBuses/getBranches 方法
-    if hasattr(raw_data, '__iter__') and not isinstance(raw_data, (str, dict)):
-        try:
-            for item in raw_data:
-                if isinstance(item, dict):
-                    result.append(item)
-                elif hasattr(item, '__dict__'):
-                    result.append(vars(item) if hasattr(item, '__dict__') else str(item))
-        except TypeError:
-            pass
-
     return result if result else list(raw_data) if isinstance(raw_data, (list, tuple)) else []
 
 
