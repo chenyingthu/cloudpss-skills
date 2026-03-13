@@ -23,8 +23,7 @@ const fs = require('fs');
 const tokenPath = path.join(__dirname, '../../../.cloudpss_token');
 if (fs.existsSync(tokenPath)) {
   const token = fs.readFileSync(tokenPath, 'utf-8').trim();
-  process.env.CLOUDPSS_TOKEN = token;
-  process.env.CLOUDPSS_API_KEY = token;  // 同时设置两个变量确保兼容
+  process.env.CLOUDPSS_TOKEN = token;  // 统一使用 CLOUDPSS_TOKEN
 }
 
 // 现在才加载模块，此时 token 已经设置好

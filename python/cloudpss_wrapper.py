@@ -274,13 +274,28 @@ def get_power_flow_results(job_id: str) -> Dict[str, Any]:
     Returns:
         潮流结果（buses 和 branches）
     """
+    import time
+
+    # 1. 等待任务完成
     job = cloudpss.Job.fetch(job_id)
-    # 使用 result 属性获取结果对象
+    max_wait = 60  # 最大等待 60 秒
+    wait_interval = 1  # 每秒检查一次
+    elapsed = 0
+
+    while not job.status() and elapsed < max_wait:
+        time.sleep(wait_interval)
+        job = cloudpss.Job.fetch(job_id)  # 重新获取以刷新状态
+        elapsed += wait_interval
+
+    if not job.status():
+        return {'buses': [], 'branches': [], 'error': 'Task timeout after waiting'}
+
+    # 2. 任务完成后重新获取结果对象
     result = job.result
     if not result:
         return {'buses': [], 'branches': [], 'error': 'No result available'}
 
-    # 尝试不同的结果访问方式
+    # 3. 尝试不同的结果访问方式
     if hasattr(result, 'getBuses') and hasattr(result, 'getBranches'):
         buses_raw = result.getBuses()
         branches_raw = result.getBranches()

@@ -17,15 +17,14 @@ const CloudPSSPythonBridge = require('./python-bridge');
 
 class CloudPSSClient {
   constructor(options = {}) {
-    this.token = options.token || process.env.CLOUDPSS_TOKEN;
-    this.apiKey = options.apiKey || process.env.CLOUDPSS_API_KEY;
+    // 统一使用 CLOUDPSS_TOKEN，保留 CLOUDPSS_API_KEY 作为向后兼容
+    this.token = options.token || process.env.CLOUDPSS_TOKEN || process.env.CLOUDPSS_API_KEY;
     this.apiURL = options.apiURL || process.env.CLOUDPSS_API_URL || 'https://cloudpss.net/';
 
-    // 优先使用 token（Python SDK 方式）
-    this.authToken = this.token || this.apiKey;
+    this.authToken = this.token;
 
     if (!this.authToken || this.authToken === 'your-cloudpss-token-here') {
-      console.warn('[CloudPSS] 警告：Token 未配置，请在 .env.sh 中设置 CLOUDPSS_TOKEN');
+      console.warn('[CloudPSS] 警告：Token 未配置，请在 .env 或 ~/.cloudpss_env 中设置 CLOUDPSS_TOKEN');
     }
 
     // 使用 Python Bridge 进行 API 调用

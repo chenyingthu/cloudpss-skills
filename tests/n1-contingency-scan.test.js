@@ -11,7 +11,7 @@ const { CloudPSSSkills } = require('../src/index');
 
 // 测试配置
 const TEST_CONFIG = {
-  token: process.env.CLOUDPSS_TOKEN || process.env.CLOUDPSS_API_KEY,
+  token: process.env.CLOUDPSS_TOKEN || process.env.CLOUDPSS_API_KEY,  // 优先 CLOUDPSS_TOKEN，兼容 CLOUDPSS_API_KEY
   apiURL: process.env.CLOUDPSS_API_URL || 'https://cloudpss.net/',
   // IEEE3 测试系统 RID（需要替换为实际的项目 RID）
   ieee3Rid: 'model/test/ieee-3-bus'

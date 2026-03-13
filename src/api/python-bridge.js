@@ -11,17 +11,16 @@ const path = require('path');
 
 class CloudPSSPythonBridge {
   constructor(options = {}) {
-    this.token = options.token || process.env.CLOUDPSS_TOKEN;
-    this.apiKey = options.apiKey || process.env.CLOUDPSS_API_KEY;
+    // 统一使用 CLOUDPSS_TOKEN，保留 CLOUDPSS_API_KEY 作为向后兼容
+    this.token = options.token || process.env.CLOUDPSS_TOKEN || process.env.CLOUDPSS_API_KEY;
     this.apiURL = options.apiURL || process.env.CLOUDPSS_API_URL || 'https://cloudpss.net/';
     this.pythonPath = options.pythonPath || '/home/chenying/anaconda3/bin/python3';
     this.wrapperPath = path.join(__dirname, '../../python/cloudpss_wrapper.py');
 
-    // 优先使用 token，如果没有则使用 apiKey
-    this.authToken = this.token || this.apiKey;
+    this.authToken = this.token;
 
     if (!this.authToken || this.authToken === 'your-cloudpss-token-here') {
-      console.warn('[CloudPSS] 警告：Token 未配置，请在 .env.sh 中设置 CLOUDPSS_TOKEN');
+      console.warn('[CloudPSS] 警告：Token 未配置，请在 .env 或 ~/.cloudpss_env 中设置 CLOUDPSS_TOKEN');
     }
   }
 

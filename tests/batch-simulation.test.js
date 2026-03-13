@@ -13,8 +13,7 @@ const { CloudPSSSkills } = require('../src/index');
 
 // 测试配置
 const TEST_CONFIG = {
-  token: process.env.CLOUDPSS_TOKEN,
-  apiKey: process.env.CLOUDPSS_API_KEY,
+  token: process.env.CLOUDPSS_TOKEN,  // 统一使用 CLOUDPSS_TOKEN
   apiURL: process.env.CLOUDPSS_API_URL || 'https://cloudpss.net/'
 };
 
