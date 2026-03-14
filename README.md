@@ -2,6 +2,41 @@
 
 CloudPSS 电力系统云仿真平台技能库 - 基于 CloudPSS Python SDK 的 Node.js 封装
 
+## Claude Code 技能安装
+
+### 方式一：通过 Claude 插件安装（推荐）
+
+```bash
+# 从 GitHub 安装插件
+claude plugin install https://github.com/chenying/cloudpss-skills
+```
+
+安装完成后，在 Claude Code 中自动激活以下技能：
+- `/cloudpss:powerflow` - 潮流计算与分析
+- `/cloudpss:n1-analysis` - N-1 安全扫描
+- `/cloudpss:batch-simulation` - 批量仿真
+- `/cloudpss:model-management` - 算例管理
+
+### 方式二：本地安装
+
+```bash
+# 克隆仓库
+git clone https://github.com/chenying/cloudpss-skills
+cd cloudpss-skills
+
+# 安装依赖
+npm install
+```
+
+### 技能列表
+
+| 技能命令 | 功能描述 |
+|---------|---------|
+| `/cloudpss:powerflow <rid>` | 执行潮流计算，获取节点电压、支路功率 |
+| `/cloudpss:n1-analysis <rid>` | N-1 预想故障扫描，识别薄弱环节 |
+| `/cloudpss:batch-simulation <rid>` | 批量多场景仿真、参数扫描 |
+| `/cloudpss:model-management <action>` | 算例 CRUD、本地模型管理、模型验证 |
+
 ## 功能概览
 
 | 技能模块 | 功能描述 |

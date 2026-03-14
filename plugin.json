@@ -1,0 +1,13 @@
+{
+  "name": "cloudpss-skills",
+  "version": "1.0.0",
+  "description": "CloudPSS Power System Simulation Skills for Claude Code",
+  "commands": [],
+  "skills": [
+    "skills/powerflow/SKILL.md",
+    "skills/n1-analysis/SKILL.md",
+    "skills/batch-simulation/SKILL.md",
+    "skills/model-management/SKILL.md"
+  ],
+  "hooks": {}
+}
