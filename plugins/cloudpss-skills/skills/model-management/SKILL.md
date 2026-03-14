@@ -1,5 +1,5 @@
 ---
-name: cloudpss:model-management
+name: model-management
 description: CloudPSS 算例管理 - 算例 CRUD、版本管理、本地模型管理、模型验证
 argument-hint: "<list | info <rid> | dump <rid> | validate <rid> | load <tag>>"
 ---
@@ -18,9 +18,9 @@ argument-hint: "<list | info <rid> | dump <rid> | validate <rid> | load <tag>>"
 </Use_When>
 
 <Do_Not_Use_When>
-- 仅需要运行潮流计算（使用 cloudpss:powerflow 技能）
+- 仅需要运行潮流计算（使用 powerflow 技能）
 - 需要 EMT 电磁暂态仿真（使用 stability 技能）
-- 需要 N-1 安全扫描（使用 cloudpss:n1-analysis 技能）
+- 需要 N-1 安全扫描（使用 n1-analysis 技能）
 </Do_Not_Use_When>
 
 <Execution_Flow>
@@ -49,22 +49,22 @@ argument-hint: "<list | info <rid> | dump <rid> | validate <rid> | load <tag>>"
 <Examples>
 ```
 # 列出所有算例
-/cloudpss:model-management list
+/model-management list
 
 # 获取算例信息
-/cloudpss:model-management info model/holdme/IEEE39
+/model-management info model/holdme/IEEE39
 
 # 验证模型
-/cloudpss:model-management validate model/holdme/IEEE39
+/model-management validate model/holdme/IEEE39
 
 # 保存到本地
-/cloudpss:model-management dump model/holdme/IEEE39 --tag=my-ieee39
+/model-management dump model/holdme/IEEE39 --tag=my-ieee39
 
 # 从本地加载
-/cloudpss:model-management load my-ieee39
+/model-management load my-ieee39
 
 # 设置别名
-/cloudpss:model-management alias my-ieee39 ieee39-test
+/model-management alias my-ieee39 ieee39-test
 ```
 </Examples>
 

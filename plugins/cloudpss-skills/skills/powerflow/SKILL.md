@@ -1,5 +1,5 @@
 ---
-name: cloudpss:powerflow
+name: powerflow
 description: CloudPSS 潮流计算与分析 - 执行潮流仿真并获取节点电压、支路功率结果
 argument-hint: "<rid | rid + jobIndex + configIndex>"
 ---
@@ -17,7 +17,7 @@ argument-hint: "<rid | rid + jobIndex + configIndex>"
 
 <Do_Not_Use_When>
 - 需要 EMT 电磁暂态仿真（使用 stability 技能）
-- 需要 N-1 安全扫描（使用 cloudpss:n1-analysis 技能）
+- 需要 N-1 安全扫描（使用 n1-analysis 技能）
 - 本地模型已满足需求（优先使用本地模式）
 </Do_Not_Use_When>
 
@@ -37,13 +37,13 @@ argument-hint: "<rid | rid + jobIndex + configIndex>"
 <Examples>
 ```
 # 执行潮流计算
-/cloudpss:powerflow model/holdme/IEEE39
+/powerflow model/holdme/IEEE39
 
 # 指定计算方案
-/cloudpss:powerflow model/holdme/IEEE39 0 1
+/powerflow model/holdme/IEEE39 0 1
 
 # 获取电压结果后检查越限
-/cloudpss:powerflow model/holdme/IEEE39 --check-violations
+/powerflow model/holdme/IEEE39 --check-violations
 ```
 </Examples>
 

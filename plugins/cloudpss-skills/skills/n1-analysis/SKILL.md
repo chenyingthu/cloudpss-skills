@@ -1,5 +1,5 @@
 ---
-name: cloudpss:n1-analysis
+name: n1-analysis
 description: CloudPSS N-1 安全扫描 - 预想故障分析、电压越限和线路过载检查
 argument-hint: "<rid | --full | --element=line|transformer|generator>"
 ---
@@ -16,9 +16,9 @@ argument-hint: "<rid | --full | --element=line|transformer|generator>"
 </Use_When>
 
 <Do_Not_Use_When>
-- 仅需要单次潮流计算（使用 cloudpss:powerflow 技能）
+- 仅需要单次潮流计算（使用 powerflow 技能）
 - 需要 EMT 电磁暂态仿真（使用 stability 技能）
-- 需要批量多场景对比（使用 cloudpss:batch-simulation 技能）
+- 需要批量多场景对比（使用 batch-simulation 技能）
 </Do_Not_Use_When>
 
 <Execution_Flow>
@@ -46,16 +46,16 @@ argument-hint: "<rid | --full | --element=line|transformer|generator>"
 <Examples>
 ```
 # 执行完整 N-1 扫描
-/cloudpss:n1-analysis model/holdme/IEEE39
+/n1-analysis model/holdme/IEEE39
 
 # 仅扫描线路
-/cloudpss:n1-analysis model/holdme/IEEE39 --element=line
+/n1-analysis model/holdme/IEEE39 --element=line
 
 # 扫描线路和变压器
-/cloudpss:n1-analysis model/holdme/IEEE39 --element=line,transformer
+/n1-analysis model/holdme/IEEE39 --element=line,transformer
 
 # 跳过基准工况
-/cloudpss:n1-analysis model/holdme/IEEE39 --skip-base-case
+/n1-analysis model/holdme/IEEE39 --skip-base-case
 ```
 </Examples>
 

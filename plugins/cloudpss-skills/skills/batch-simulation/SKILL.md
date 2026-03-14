@@ -1,5 +1,5 @@
 ---
-name: cloudpss:batch-simulation
+name: batch-simulation
 description: CloudPSS 批量仿真 - 多场景并行执行、参数扫描、年度方式计算
 argument-hint: "<rid | --scenarios=list | --sweep=param | --annual | --load-growth>"
 ---
@@ -17,9 +17,9 @@ argument-hint: "<rid | --scenarios=list | --sweep=param | --annual | --load-grow
 </Use_When>
 
 <Do_Not_Use_When>
-- 仅需要单次潮流计算（使用 cloudpss:powerflow 技能）
+- 仅需要单次潮流计算（使用 powerflow 技能）
 - 需要 EMT 电磁暂态仿真（使用 stability 技能）
-- 需要 N-1 安全扫描（使用 cloudpss:n1-analysis 技能）
+- 需要 N-1 安全扫描（使用 n1-analysis 技能）
 </Do_Not_Use_When>
 
 <Execution_Flow>
@@ -46,19 +46,19 @@ argument-hint: "<rid | --scenarios=list | --sweep=param | --annual | --load-grow
 <Examples>
 ```
 # 批量计算预定义场景
-/cloudpss:batch-simulation model/holdme/IEEE39 --scenarios=scene1,scene2,scene3
+/batch-simulation model/holdme/IEEE39 --scenarios=scene1,scene2,scene3
 
 # 负荷增长扫描
-/cloudpss:batch-simulation model/holdme/IEEE39 --load-growth --start=80 --end=120 --step=5
+/batch-simulation model/holdme/IEEE39 --load-growth --start=80 --end=120 --step=5
 
 # 参数扫描
-/cloudpss:batch-simulation model/holdme/IEEE39 --sweep=load_factor --values=0.8,0.9,1.0,1.1,1.2
+/batch-simulation model/holdme/IEEE39 --sweep=load_factor --values=0.8,0.9,1.0,1.1,1.2
 
 # 年度方式计算
-/cloudpss:batch-simulation model/holdme/IEEE39 --annual --type=typical
+/batch-simulation model/holdme/IEEE39 --annual --type=typical
 
 # 发电机出力扫描
-/cloudpss:batch-simulation model/holdme/IEEE39 --gen-sweep=Gen1 --levels=100,150,200,250
+/batch-simulation model/holdme/IEEE39 --gen-sweep=Gen1 --levels=100,150,200,250
 ```
 </Examples>
 
