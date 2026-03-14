@@ -1,0 +1,8 @@
+{
+  "name": "cloudpss-skills",
+  "description": "CloudPSS Power System Simulation Skills - 潮流计算、N-1分析、批量仿真、算例管理",
+  "author": {
+    "name": "AI-DPSLab",
+    "email": "support@cloudpss.net"
+  }
+}

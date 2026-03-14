@@ -14,7 +14,7 @@ class CloudPSSPythonBridge {
     // 统一使用 CLOUDPSS_TOKEN，保留 CLOUDPSS_API_KEY 作为向后兼容
     this.token = options.token || process.env.CLOUDPSS_TOKEN || process.env.CLOUDPSS_API_KEY;
     this.apiURL = options.apiURL || process.env.CLOUDPSS_API_URL || 'https://cloudpss.net/';
-    this.pythonPath = options.pythonPath || '/home/chenying/anaconda3/bin/python3';
+    this.pythonPath = options.pythonPath || '/home/linuxbrew/.linuxbrew/bin/python3';
     this.wrapperPath = path.join(__dirname, '../../python/cloudpss_wrapper.py');
 
     this.authToken = this.token;

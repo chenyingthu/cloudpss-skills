@@ -1,0 +1,8 @@
+{
+  "name": "cloudpss-skills",
+  "description": "CloudPSS 电力系统仿真技能包 - 潮流计算、N-1预想事故扫描、批量仿真、算例管理",
+  "author": {
+    "name": "AI-DPSLab",
+    "email": "support@cloudpss.net"
+  }
+}
